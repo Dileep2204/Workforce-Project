@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>TD — Workforce Intelligence Platform</title>
-  <!-- Browser Tab Favicon (TD Geometric Monogram) -->
+<title>SSKATT — Workforce Intelligence Platform</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230b1730'/%3E%3Cpath d='M20 28h38l-4 8H42l-14 36h-8l14-36H24z' fill='%23ffffff'/%3E%3Cpath d='M44 32h14c14 0 26 10 26 24s-12 24-26 24H36l5-12h17c7 0 13-5 13-12s-6-12-13-12H48z' fill='%2338bdf8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1233,6 +1232,7 @@ button, input, select, textarea { font: inherit; }
                   <th>NAME</th>
                   <th>DEPARTMENT</th>
                   <th>ROLE</th>
+                  <th>ASSIGNED SHIFT</th>
                   <th>PASSWORD</th>
                   <th>ATTENDED DAYS</th>
                   <th>BASE / PER-DAY</th>
@@ -1344,7 +1344,7 @@ button, input, select, textarea { font: inherit; }
         <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>EMPLOYEE</th><th>ROLE</th><th>ATTENDED DAYS</th><th>MONTHLY BASE</th><th>CALCULATED NET SALARY</th><th>ACTIONS</th></tr></thead><tbody id="payslipsTableRows"></tbody></table></div></div>
       </section>
 
-      <!-- Sector Admin Support Desk View (NEW) -->
+      <!-- Sector Admin Support Desk View -->
       <section id="view-admin-tickets" class="view-section hidden">
         <div class="dash-head">
           <div>
@@ -1664,7 +1664,7 @@ button, input, select, textarea { font: inherit; }
         </div>
       </section>
 
-      <!-- Employee Raise Ticket & Resolution Center (NEW) -->
+      <!-- Employee Raise Ticket & Resolution Center -->
       <section id="view-emp-tickets" class="view-section hidden">
         <div class="dash-head">
           <div>
@@ -1923,7 +1923,6 @@ const SECTOR_METADATA = {
   Corporate: { icon: "🏢", defaultDepts: ["Engineering", "Product", "Operations"] }
 };
 
-// Initial Seed for Super Admin Deletion & Retention Audit Desk
 let deletionAudits = [
   {
     id: "DEL-8091",
@@ -1942,7 +1941,6 @@ let deletionAudits = [
   }
 ];
 
-// Unified Support Queries / Tickets Repository with Hierarchy & Transfer
 let supportQueries = [
   {
     id: "QRY-1001",
@@ -1951,7 +1949,7 @@ let supportQueries = [
     submitter: "Dr. Ananya Rao (Staff E-1024)",
     submitterId: "E-1024",
     role: "employee",
-    target: "Super Admin", // "Sector Admin" or "Super Admin"
+    target: "Super Admin",
     subject: "Biometric terminal sync lag in Trauma Bay 1",
     details: "The biometric fingerprint sensor in Trauma Bay 1 experiences a 9-minute sync delay.",
     priority: "High",
@@ -2145,7 +2143,6 @@ async function login() {
     return;
   }
 
-  // Employee Verification
   const matchedEmp = (targetOrg.employees || []).find(e => 
     (e.id.toLowerCase() === userInput.toLowerCase() || e.name.toLowerCase() === userInput.toLowerCase()) &&
     (e.password === passInput || passInput === "password123")
@@ -2475,7 +2472,6 @@ function renderSuperQueriesView() {
   const badge = document.getElementById("superQueryBadge");
   if (!tbody) return;
 
-  // Global pool includes tickets assigned to Super Admin OR transferred by Sector Admins
   const superTickets = supportQueries.filter(q => q.target === "Super Admin" || q.status === "Transferred to Super Admin");
 
   if (badge) {
@@ -2579,7 +2575,6 @@ function renderAdminTicketsView() {
   const org = organizations[currentOrgId];
   if (!org) return;
 
-  // Inbound tickets for this organization
   const orgTickets = supportQueries.filter(q => q.orgId === org.orgId);
   const unresolved = orgTickets.filter(q => q.status === "Open" && q.target === "Sector Admin").length;
 
@@ -3276,6 +3271,155 @@ function saveNewShift() {
   showToast(`Shift "${name}" added successfully!`);
 }
 
+/* ==============================================================
+   EDIT / DELETE SHIFT ROSTER & CHANGE EMPLOYEE SHIFT
+   ============================================================== */
+function openEditShiftModal(idx) {
+  const org = organizations[currentOrgId];
+  const s = (org.shifts || [])[idx];
+  if (!s) return;
+
+  const parts = (s.hours || "08:00 - 17:00").split(" - ");
+  const startVal = parts[0] || "08:00";
+  const endVal = parts[1] || "17:00";
+
+  const content = document.getElementById("universalModalContent");
+  content.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <span class="pill" style="font-size:10px">${org.sector} (${org.orgId}) Roster Control</span>
+        <h3 style="margin:4px 0 0">Edit Shift Window</h3>
+      </div>
+      <button class="action" onclick="closeUniversalModal()">✕</button>
+    </div>
+    <div>
+      <label>Shift Name / Title *</label>
+      <input id="editShiftName" value="${escapeHtml(s.name)}">
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label>Start Time *</label><input type="time" id="editShiftStart" value="${startVal}"></div>
+        <div><label>End Time *</label><input type="time" id="editShiftEnd" value="${endVal}"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label>Required Staff *</label><input type="number" id="editShiftRequired" value="${s.required}"></div>
+        <div><label>Allocated Staff *</label><input type="number" id="editShiftAllocated" value="${s.allocated}"></div>
+      </div>
+
+      <label>Roster Status</label>
+      <select id="editShiftStatus">
+        <option value="Optimal" ${s.status === 'Optimal' ? 'selected' : ''}>Optimal</option>
+        <option value="Adequate" ${s.status === 'Adequate' ? 'selected' : ''}>Adequate</option>
+        <option value="Understaffed" ${s.status === 'Understaffed' ? 'selected' : ''}>Understaffed</option>
+      </select>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:20px">
+        <button class="btn" style="background:#ffeaea;color:#b42318" onclick="deleteShift(${idx})">🗑️ Delete Shift</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="background:#f1f5f9" onclick="closeUniversalModal()">Cancel</button>
+          <button class="btn btn-blue" onclick="saveEditedShift(${idx})">Save Shift Changes ✓</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("universalModal").classList.remove("hidden");
+}
+
+function saveEditedShift(idx) {
+  const org = organizations[currentOrgId];
+  const s = (org.shifts || [])[idx];
+  if (!s) return;
+
+  const name = (document.getElementById("editShiftName")?.value || "").trim();
+  const start = document.getElementById("editShiftStart")?.value || "08:00";
+  const end = document.getElementById("editShiftEnd")?.value || "17:00";
+  const req = Number(document.getElementById("editShiftRequired")?.value) || 0;
+  const alloc = Number(document.getElementById("editShiftAllocated")?.value) || 0;
+  const status = document.getElementById("editShiftStatus")?.value || "Optimal";
+
+  if (!name) return showToast("Please enter a shift name!");
+
+  s.name = name;
+  s.hours = `${start} - ${end}`;
+  s.required = req;
+  s.allocated = alloc;
+  s.status = status;
+
+  closeUniversalModal();
+  renderShiftsRoster();
+  showToast(`Shift "${name}" updated successfully!`);
+}
+
+function deleteShift(idx) {
+  const org = organizations[currentOrgId];
+  if (!org.shifts) return;
+  const removed = org.shifts.splice(idx, 1);
+  closeUniversalModal();
+  renderShiftsRoster();
+  showToast(`Shift "${removed[0]?.name || 'Window'}" removed.`);
+}
+
+function openChangeEmployeeShiftModal(empId) {
+  const org = organizations[currentOrgId];
+  const emp = (org.employees || []).find(e => e.id === empId);
+  if (!emp) return;
+
+  const shiftOptions = (org.shifts || []).map(s => `${s.name} (${s.hours})`);
+  if (!shiftOptions.includes(emp.shift)) shiftOptions.unshift(emp.shift);
+
+  const content = document.getElementById("universalModalContent");
+  content.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <span class="pill" style="font-size:10px">Roster Assignment</span>
+        <h3 style="margin:4px 0 0">Change Shift — ${escapeHtml(emp.name)}</h3>
+      </div>
+      <button class="action" onclick="closeUniversalModal()">✕</button>
+    </div>
+    <div>
+      <label>Current Assigned Shift</label>
+      <input value="${escapeHtml(emp.shift)}" disabled style="background:#f8fafc">
+
+      <label>Select Roster Window</label>
+      <select id="changeEmpShiftSelect" onchange="document.getElementById('changeEmpShiftCustom').value = this.value">
+        ${shiftOptions.map(opt => `<option value="${escapeHtml(opt)}" ${opt === emp.shift ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join("")}
+      </select>
+
+      <label>Or Enter Custom Shift Window</label>
+      <input id="changeEmpShiftCustom" value="${escapeHtml(emp.shift)}" placeholder="e.g. Night Shift (22:00 - 06:30)">
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
+        <button class="btn" style="background:#f1f5f9" onclick="closeUniversalModal()">Cancel</button>
+        <button class="btn btn-blue" onclick="saveEmployeeShiftChange('${emp.id}')">Update Employee Shift ✓</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("universalModal").classList.remove("hidden");
+}
+
+function saveEmployeeShiftChange(empId) {
+  const org = organizations[currentOrgId];
+  const emp = (org.employees || []).find(e => e.id === empId);
+  if (!emp) return;
+
+  const newShift = (document.getElementById("changeEmpShiftCustom")?.value || "").trim();
+  if (!newShift) return showToast("Please select or enter a shift window!");
+
+  emp.shift = newShift;
+  if (!org.chats) org.chats = {};
+  if (!org.chats[emp.id]) org.chats[emp.id] = [];
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  org.chats[emp.id].push({
+    sender: "admin",
+    text: `🗓️ [SHIFT UPDATED]: Your assigned duty schedule has been updated to "${newShift}".`,
+    time: timeStr
+  });
+
+  closeUniversalModal();
+  renderEmployeeDirectory();
+  showToast(`Shift updated for ${emp.name}!`);
+}
+
 function openRaiseWorkloadRequestModal() {
   const org = organizations[currentOrgId];
   const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
@@ -3554,7 +3698,7 @@ function renderEmployeeDirectory() {
   const list = organizations[currentOrgId]?.employees || [];
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--muted)">No registered staff members found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:16px;color:var(--muted)">No registered staff members found.</td></tr>`;
     return;
   }
 
@@ -3567,12 +3711,14 @@ function renderEmployeeDirectory() {
         <td><b>${escapeHtml(e.name)}</b></td>
         <td>${escapeHtml(e.dept)}</td>
         <td>${escapeHtml(e.role)}</td>
+        <td><span class="pill" style="font-size:10px">${escapeHtml(e.shift || 'Morning A (08:00 - 16:30)')}</span></td>
         <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${escapeHtml(e.password || 'password123')}</code></td>
         <td><b>${attended} / ${e.totalDays || 26} Days</b></td>
         <td>₹ ${e.basePay.toLocaleString('en-IN')} / ₹ ${calc.perDay}</td>
         <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
         <td>
           <div style="display:flex;gap:4px">
+            <button class="action" onclick="openChangeEmployeeShiftModal('${e.id}')">Change Shift</button>
             <button class="action" onclick="openAssignTaskModal('${escapeJsString(e.name)}')">Assign Work</button>
             <button class="action action-danger" onclick="initiateAdminEmployeeDeletion('${e.id}')">Delete Record</button>
           </div>
@@ -3681,13 +3827,16 @@ function renderShiftsRoster() {
   const shifts = organizations[currentOrgId]?.shifts || [];
   tbody.innerHTML = shifts.map((s, idx) => `
     <tr>
-      <td><b>${s.name}</b></td>
-      <td>${s.hours}</td>
+      <td><b>${escapeHtml(s.name)}</b></td>
+      <td>${escapeHtml(s.hours)}</td>
       <td>${s.required} Personnel</td>
       <td>${s.allocated} Assigned</td>
-      <td><span class="status optimal">${s.status}</span></td>
+      <td><span class="status ${s.status === 'Understaffed' ? 'absent' : (s.status === 'Adequate' ? 'late' : 'optimal')}">${s.status}</span></td>
       <td>
-        <button class="action" onclick="showToast('Shift details updated')">Edit Shift</button>
+        <div style="display:flex;gap:4px">
+          <button class="action action-primary" onclick="openEditShiftModal(${idx})">Edit Shift</button>
+          <button class="action action-danger" onclick="deleteShift(${idx})">Delete</button>
+        </div>
       </td>
     </tr>
   `).join("");
@@ -3777,11 +3926,21 @@ function viewDetailedPayslip(empId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
+/* ==============================================================
+   RESIGNATION REVIEW & CONFIRMATION WITH EMPLOYEE MESSAGE
+   ============================================================== */
 function renderAdminResignationsQueue() {
   const org = organizations[currentOrgId];
   const tbody = document.getElementById("adminResignationTableRows");
   if (!tbody) return;
   const resignations = org.resignations || [];
+  const pendingCount = resignations.filter(r => r.status === "Pending Review").length;
+
+  const sideBadge = document.getElementById("adminResignBadge");
+  if (sideBadge) {
+    sideBadge.style.display = pendingCount > 0 ? "inline-block" : "none";
+    sideBadge.textContent = `${pendingCount} exit req`;
+  }
 
   if (resignations.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--muted)">No staff resignation requests submitted</td></tr>`;
@@ -3789,20 +3948,92 @@ function renderAdminResignationsQueue() {
     return;
   }
 
-  document.getElementById("adminResignCountBadge").textContent = `${resignations.length} Pending`;
+  document.getElementById("adminResignCountBadge").textContent = `${pendingCount} Pending`;
 
   tbody.innerHTML = resignations.map(r => `
     <tr>
       <td><b>${r.id}</b></td>
-      <td><b>${r.empName}</b><br><small style="color:var(--muted)">${r.empId} · ${r.dept}</small></td>
+      <td><b>${escapeHtml(r.empName)}</b><br><small style="color:var(--muted)">${r.empId} · ${escapeHtml(r.dept)}</small></td>
       <td><small>${r.submittedDate}</small></td>
       <td><b>${r.noticeDays} Days</b></td>
       <td><b style="color:#b91c1c">${r.officialLwd || r.proposedLwd}</b></td>
-      <td style="max-width:240px"><b>${r.reason}</b></td>
-      <td><span class="status ${r.status === 'Accepted' ? 'absent' : 'late'}">${r.status}</span></td>
-      <td><button class="action" onclick="showToast('Reviewed')">Review & Decide</button></td>
+      <td style="max-width:240px">
+        <b>${escapeHtml(r.reason)}</b>
+        ${r.adminRemarks ? `<div style="font-size:10.5px;color:#1d4ed8;margin-top:2px">Admin Msg: ${escapeHtml(r.adminRemarks)}</div>` : ''}
+      </td>
+      <td><span class="status ${r.status === 'Accepted' ? 'absent' : (r.status === 'Declined / Retained' ? 'present' : 'late')}">${r.status}</span></td>
+      <td><button class="action action-primary" onclick="openReviewResignationModal('${r.id}')">Review & Decide</button></td>
     </tr>
   `).join("");
+}
+
+function openReviewResignationModal(resignId) {
+  const org = organizations[currentOrgId];
+  const r = (org.resignations || []).find(x => x.id === resignId);
+  if (!r) return;
+
+  const content = document.getElementById("universalModalContent");
+  content.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <span class="pill" style="background:#ffeaea;color:#b42318;font-size:10px">Exit & Separation Clearance</span>
+        <h3 style="margin:4px 0 0">Review Resignation: ${r.id}</h3>
+      </div>
+      <button class="action" onclick="closeUniversalModal()">✕</button>
+    </div>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:8px;font-size:12px;line-height:1.7;margin-bottom:12px">
+      <div><b>Employee:</b> ${escapeHtml(r.empName)} (${r.empId} · ${escapeHtml(r.dept)})</div>
+      <div><b>Submitted Date:</b> ${r.submittedDate} · <b>Notice Period:</b> ${r.noticeDays} Days</div>
+      <div><b>Departure Reason:</b> ${escapeHtml(r.reason)}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1">
+        <b>Formal Letter:</b><br><i>"${escapeHtml(r.letter)}"</i>
+      </div>
+    </div>
+
+    <label>Confirmed Official Last Working Day *</label>
+    <input type="date" id="resignOfficialLwdInput" value="${r.officialLwd || r.proposedLwd}">
+
+    <label>Confirmation Message & Exit Instructions to Employee *</label>
+    <textarea id="resignAdminRemarksInput" rows="3" placeholder="Enter message to confirm with employee (e.g., Handover checklist, exit interview schedule, or retention counter-offer)...">${escapeHtml(r.adminRemarks || '')}</textarea>
+
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-top:18px;flex-wrap:wrap">
+      <button class="btn" style="background:#e2e8f0;color:#1e293b" onclick="saveResignationDecision('${r.id}', 'Declined / Retained')">Decline / Retain Staff ↺</button>
+      <button class="btn btn-purple" style="background:#dc2626" onclick="saveResignationDecision('${r.id}', 'Accepted')">Accept & Confirm Exit ✓</button>
+    </div>
+  `;
+  document.getElementById("universalModal").classList.remove("hidden");
+}
+
+function saveResignationDecision(resignId, decisionStatus) {
+  const org = organizations[currentOrgId];
+  const r = (org.resignations || []).find(x => x.id === resignId);
+  if (!r) return;
+
+  const officialLwd = document.getElementById("resignOfficialLwdInput")?.value || r.proposedLwd;
+  const remarks = (document.getElementById("resignAdminRemarksInput")?.value || "").trim();
+
+  if (!remarks) {
+    showToast("Please enter a confirmation message for the employee!");
+    return;
+  }
+
+  r.status = decisionStatus;
+  r.officialLwd = officialLwd;
+  r.adminRemarks = remarks;
+
+  if (!org.chats) org.chats = {};
+  if (!org.chats[r.empId]) org.chats[r.empId] = [];
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  org.chats[r.empId].push({
+    sender: "admin",
+    text: `📝 [RESIGNATION ${decisionStatus.toUpperCase()} — Ref ${r.id}]: Official LWD: ${officialLwd}. Message: "${remarks}"`,
+    time: timeStr
+  });
+
+  closeUniversalModal();
+  renderAdminResignationsQueue();
+  renderAdminChatView();
+  showToast(`Resignation ${r.id} marked as "${decisionStatus}" & message sent to ${r.empName}!`);
 }
 
 function renderAdminChatView() {
@@ -3915,6 +4146,33 @@ function renderEmployeeAllViews() {
   renderEmployeePayslipsView();
   renderEmployeeTicketsView();
   renderEmployeeRecentTicketsWidget();
+  renderEmployeeResignationStatus();
+}
+
+function renderEmployeeResignationStatus() {
+  const org = organizations[currentOrgId];
+  const myResign = (org.resignations || []).find(r => r.empId === currentEmployeeId);
+  const card = document.getElementById("empResignStatusCard");
+  const pill = document.getElementById("empCurrentNoticeStatusPill");
+  if (!myResign || !card) return;
+
+  if (pill) {
+    pill.textContent = `Status: ${myResign.status}`;
+    pill.style.background = myResign.status === "Accepted" ? "#fee2e2" : (myResign.status === "Declined / Retained" ? "#e9f8ef" : "#fff4df");
+    pill.style.color = myResign.status === "Accepted" ? "#b91c1c" : (myResign.status === "Declined / Retained" ? "#16803d" : "#a65a00");
+  }
+
+  card.innerHTML = `
+    <div style="background:#f8fafc;border:1px solid #cbd5e1;padding:16px;border-radius:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b>Notice Ref: ${myResign.id}</b>
+        <span class="status ${myResign.status === 'Accepted' ? 'absent' : (myResign.status === 'Declined / Retained' ? 'present' : 'late')}">${myResign.status}</span>
+      </div>
+      <div style="font-size:12px;margin-top:8px">Official Last Working Day: <b>${myResign.officialLwd || myResign.proposedLwd}</b></div>
+      <div style="font-size:12px;margin-top:4px">Reason: <b>${escapeHtml(myResign.reason)}</b></div>
+      ${myResign.adminRemarks ? `<div style="margin-top:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1e3a8a;font-size:12px"><b>Sector Admin Confirmation Message:</b><br>${escapeHtml(myResign.adminRemarks)}</div>` : ''}
+    </div>
+  `;
 }
 
 function toggleEmployeePunch() {
@@ -4082,17 +4340,7 @@ function submitEmployeeResignationNotice() {
     adminRemarks: ""
   });
 
-  const card = document.getElementById("empResignStatusCard");
-  if (card) {
-    card.innerHTML = `
-      <div style="background:#fff4df;border:1px solid #fde68a;padding:16px;border-radius:10px">
-        <b style="color:#a65a00">Notice Submitted to Sector Admin</b>
-        <div style="font-size:12px;margin-top:6px">Proposed Last Working Day: <b>${lwd}</b></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">Status: <span class="status late">Pending Review</span></div>
-      </div>
-    `;
-  }
-
+  renderEmployeeResignationStatus();
   showToast("Resignation notice submitted!");
 }
 
@@ -4244,7 +4492,6 @@ async function sendBotMessage() {
 async function processBotQuery(query) {
   const qLower = query.toLowerCase();
   const org = organizations[currentOrgId] || Object.values(organizations)[0];
-  const isEmp = currentUserRole === "employee";
   const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
 
   if (qLower.includes("leave") || qLower.includes("vacation")) {
