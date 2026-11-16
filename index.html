@@ -3299,36 +3299,18 @@ function openAssignTaskModal(prefilledAssignee) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveDispatchedWorkOrder() {
-  const org = organizations[currentOrgId];
-  const title = (document.getElementById("assignTaskTitle")?.value || "").trim();
-  const assignee = document.getElementById("assignTaskAssignee")?.value || "Unassigned";
-  const zone = (document.getElementById("assignTaskZone")?.value || "Main Facility").trim();
-  const priority = document.getElementById("assignTaskPriority")?.value || "Medium";
-  const progress = Number(document.getElementById("assignTaskProgress")?.value) || 10;
-
-  if (!title) {
-    showToast("Please provide a task scope description!");
-    return;
-  }
-
-  const prefix = org.orgId.split('-')[0] || 'TSK';
-  const newTaskId = `TSK-${prefix}${Math.floor(10 + Math.random() * 90)}`;
-
-  if (!org.tasks) org.tasks = [];
-  org.tasks.unshift({
-    id: newTaskId,
-    title: title,
-    zone: zone,
-    assignee: assignee,
-    priority: priority,
-    progress: progress,
-    status: progress === 100 ? "Completed" : "In Progress"
-  });
-
-  closeUniversalModal();
-  renderWorkAssignments();
-  showToast(`Work order "${newTaskId}" assigned to ${assignee}!`);
+async function saveDispatchedWorkOrder() {
+  const org=organizations[currentOrgId], title=(document.getElementById("assignTaskTitle")?.value||"").trim();
+  const assignee=document.getElementById("assignTaskAssignee")?.value||"Unassigned";
+  const employee=(org.employees||[]).find(e=>e.name===assignee);
+  const zone=(document.getElementById("assignTaskZone")?.value||"Main Facility").trim();
+  const priority=document.getElementById("assignTaskPriority")?.value||"Medium";
+  const progress=Number(document.getElementById("assignTaskProgress")?.value)||10;
+  if(!title||!employee)return showToast("Enter task title and choose a valid employee.");
+  const id=`TSK-${org.orgId.split("-")[0]}-${Date.now()}`;
+  const task={id,title,zone,assignee:employee.name,employee_id:employee.id,empId:employee.id,priority,progress,status:progress===100?"Completed":"In Progress"};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/tasks`,{method:"POST",body:JSON.stringify({external_id:id,payload:task})});org.tasks=org.tasks||[];org.tasks.unshift(saved);closeUniversalModal();renderWorkAssignments();showToast("Work order saved and assigned.");}
+  catch(error){showToast(`Work order was not saved: ${error.message}`);}
 }
 
 function openAddShiftModal() {
@@ -3528,35 +3510,15 @@ function openRaiseWorkloadRequestModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function submitEmployeeWorkloadRequest() {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const severity = document.getElementById("empLoadSeverity")?.value || "100% Full Load";
-  const explanation = (document.getElementById("empLoadExplanation")?.value || "").trim() || "Capacity at maximum.";
-
-  if (!org.workloadRequests) org.workloadRequests = [];
-  org.workloadRequests.unshift({
-    id: `WLD-${Math.floor(100 + Math.random() * 900)}`,
-    empId: emp.id,
-    empName: emp.name,
-    severity: severity,
-    tasks: "Current Active Queue",
-    explanation: explanation,
-    timestamp: "Just now",
-    status: "Pending Action"
-  });
-
-  if (!org.chats) org.chats = {};
-  if (!org.chats[emp.id]) org.chats[emp.id] = [];
-  org.chats[emp.id].push({
-    sender: "emp",
-    text: `⚠️ [CAPACITY ALERT - ${severity}]: "${explanation}"`,
-    time: "Just now"
-  });
-
-  closeUniversalModal();
-  renderEmployeeTasksView();
-  showToast("Workload alert sent to Sector Admin!");
+async function submitEmployeeWorkloadRequest() {
+  const org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===currentEmployeeId);
+  if(!emp)return;
+  const severity=document.getElementById("empLoadSeverity")?.value||"100% Full Load";
+  const explanation=(document.getElementById("empLoadExplanation")?.value||"").trim();
+  if(!explanation)return showToast("Please explain the workload issue.");
+  const id=`WLD-${Date.now()}`,record={id,empId:emp.id,employee_id:emp.id,empName:emp.name,severity,tasks:"Current Active Queue",explanation,timestamp:new Date().toISOString(),status:"Pending Action"};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/workloadRequests`,{method:"POST",body:JSON.stringify({external_id:id,payload:record})});org.workloadRequests=org.workloadRequests||[];org.workloadRequests.unshift(saved);closeUniversalModal();renderEmployeeTasksView();showToast("Workload alert submitted to the administrator.");}
+  catch(error){showToast(`Workload alert was not saved: ${error.message}`);}
 }
 
 function renderEmployeeTasksView() {
@@ -3648,12 +3610,11 @@ function renderAdminWorkloadAlerts() {
   `).join("");
 }
 
-function adminResolveWorkload(reqId) {
-  const org = organizations[currentOrgId];
-  const r = (org.workloadRequests || []).find(x => x.id === reqId);
-  if (r) r.status = "Resolved";
-  renderAdminWorkloadAlerts();
-  showToast("Workload alert marked as relieved!");
+async function adminResolveWorkload(reqId) {
+  const org=organizations[currentOrgId],record=(org.workloadRequests||[]).find(x=>x.id===reqId);if(!record)return;
+  const updated={...record,status:"Resolved",resolvedAt:new Date().toISOString()};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/workloadRequests/${encodeURIComponent(reqId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(record,saved);renderAdminWorkloadAlerts();showToast("Workload alert resolution saved.");}
+  catch(error){showToast(`Update failed: ${error.message}`);}
 }
 
 function openAddEmployeeModal() {
@@ -4405,33 +4366,16 @@ function renderEmployeePayslipsView() {
   }
 }
 
-function submitEmployeeResignationNotice() {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const reason = document.getElementById("empResignReasonSelect")?.value || "Personal Reasons";
-  const lwd = document.getElementById("empResignProposedLwd")?.value || "2026-12-11";
-  const letter = (document.getElementById("empResignLetterText")?.value || "").trim();
-
-  if (!letter) return showToast("Please write formal resignation letter!");
-
-  if (!org.resignations) org.resignations = [];
-  org.resignations.unshift({
-    id: `RSG-${Math.floor(100 + Math.random() * 900)}`,
-    empId: emp.id,
-    empName: emp.name,
-    dept: emp.dept,
-    submittedDate: new Date().toISOString().split('T')[0],
-    noticeDays: 30,
-    proposedLwd: lwd,
-    officialLwd: lwd,
-    reason: reason,
-    letter: letter,
-    status: "Pending Review",
-    adminRemarks: ""
-  });
-
-  renderEmployeeResignationStatus();
-  showToast("Resignation notice submitted!");
+async function submitEmployeeResignationNotice() {
+  const org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===currentEmployeeId);
+  if(!emp)return;
+  const reason=document.getElementById("empResignReasonSelect")?.value||"Personal Reasons";
+  const lwd=document.getElementById("empResignProposedLwd")?.value||"";
+  const letter=(document.getElementById("empResignLetterText")?.value||"").trim();
+  if(!letter||!lwd)return showToast("Provide the proposed last working day and resignation letter.");
+  const id=`RSG-${Date.now()}`,record={id,empId:emp.id,employee_id:emp.id,empName:emp.name,dept:emp.dept,submittedDate:new Date().toISOString().slice(0,10),noticeDays:30,proposedLwd:lwd,officialLwd:lwd,reason,letter,status:"Pending Review",adminRemarks:""};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/resignations`,{method:"POST",body:JSON.stringify({external_id:id,payload:record})});org.resignations=org.resignations||[];org.resignations.unshift(saved);renderEmployeeResignationStatus();showToast("Resignation notice submitted to your administrator.");}
+  catch(error){showToast(`Resignation was not submitted: ${error.message}`);}
 }
 
 function renderEmpAdminChatView() {
