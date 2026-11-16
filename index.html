@@ -2252,6 +2252,7 @@ async function login() {
 
     if (authenticatedUser.role === "employee") {
       currentUserRole = "employee";
+      supportQueries = org.supportQueries || [];
       currentEmployeeId = authenticatedUser.employee_id;
       const employee = (org.employees || []).find(e => String(e.id || e.employee_id) === String(currentEmployeeId));
       if (!employee) throw new Error("Your employee profile is not linked to this account. Contact your organization administrator.");
@@ -2757,24 +2758,25 @@ function openResolveTicketModal(ticketId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveAdminResolvedTicket(ticketId) {
+async function saveAdminResolvedTicket(ticketId) {
   const q = supportQueries.find(x => x.id === ticketId);
   const note = (document.getElementById("adminResolveNote")?.value || "").trim();
+  if (!note) return showToast("Please provide the resolution note!");
+  if (!q) return showToast("Ticket not found.");
 
-  if (!note) {
-    showToast("Please provide the resolution note!");
-    return;
+  const updated = { ...q, response: note, status: "Resolved",
+    resolvedBy: `Sector Admin (${authenticatedUser?.username || "admin"})` };
+  try {
+    await sskattApi(`/organizations/${encodeURIComponent(currentOrgId)}/resources/supportQueries/${encodeURIComponent(ticketId)}`, {
+      method: "PATCH", body: JSON.stringify({ payload: updated })
+    });
+    Object.assign(q, updated);
+    closeUniversalModal();
+    renderAdminTicketsView();
+    showToast(`Ticket #${ticketId} resolution saved.`);
+  } catch (error) {
+    showToast(`Ticket update failed: ${error.message}`);
   }
-
-  if (q) {
-    q.response = note;
-    q.status = "Resolved";
-    q.resolvedBy = `Sector Admin (${organizations[currentOrgId]?.adminUser})`;
-  }
-
-  closeUniversalModal();
-  renderAdminTicketsView();
-  showToast(`Ticket #${ticketId} marked as resolved!`);
 }
 
 function openTransferTicketModal(ticketId) {
@@ -2808,24 +2810,24 @@ function openTransferTicketModal(ticketId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function executeTicketTransfer(ticketId) {
+async function executeTicketTransfer(ticketId) {
   const q = supportQueries.find(x => x.id === ticketId);
   const notes = (document.getElementById("adminTransferNotes")?.value || "").trim();
+  if (!notes) return showToast("Please enter reason/notes for the Super Admin!");
+  if (!q) return showToast("Ticket not found.");
 
-  if (!notes) {
-    showToast("Please enter reason/notes for the Super Admin!");
-    return;
+  const updated = { ...q, status: "Transferred to Super Admin", target: "Super Admin", adminNotes: notes };
+  try {
+    await sskattApi(`/organizations/${encodeURIComponent(currentOrgId)}/resources/supportQueries/${encodeURIComponent(ticketId)}`, {
+      method: "PATCH", body: JSON.stringify({ payload: updated })
+    });
+    Object.assign(q, updated);
+    closeUniversalModal();
+    renderAdminTicketsView();
+    showToast(`Ticket #${ticketId} transferred to Super Admin.`);
+  } catch (error) {
+    showToast(`Ticket transfer failed: ${error.message}`);
   }
-
-  if (q) {
-    q.status = "Transferred to Super Admin";
-    q.target = "Super Admin";
-    q.adminNotes = notes;
-  }
-
-  closeUniversalModal();
-  renderAdminTicketsView();
-  showToast(`Ticket #${ticketId} transferred to Super Admin Control Center!`);
 }
 
 /* ==============================================================
@@ -2881,52 +2883,46 @@ function openRaiseTicketModal(isEmployeeMode) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveRaisedTicket(isEmployeeMode) {
+async function saveRaisedTicket(isEmployeeMode) {
   const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
+  const emp = (org.employees || []).find(e => e.id === currentEmployeeId);
+  if (isEmployeeMode && !emp) return showToast("Employee profile is not available.");
 
   const target = document.getElementById("ticketTargetRecipient")?.value || "Sector Admin";
   const subject = (document.getElementById("ticketSubjectInput")?.value || "").trim();
   const priority = document.getElementById("ticketPriorityInput")?.value || "Medium";
   const details = (document.getElementById("ticketDetailsInput")?.value || "").trim();
+  if (!subject || !details) return showToast("Please provide subject and ticket details!");
 
-  if (!subject || !details) {
-    showToast("Please provide subject and ticket details!");
-    return;
-  }
-
-  const newId = `QRY-${Math.floor(1000 + Math.random() * 9000)}`;
-  const submitterName = isEmployeeMode ? `${emp.name} (Staff ${emp.id})` : `Sector Admin (${org.adminUser})`;
-  const submitterId = isEmployeeMode ? emp.id : org.adminUser;
-
+  const newId = `QRY-${Date.now()}`;
+  const submitterName = isEmployeeMode ? `${emp.name} (Staff ${emp.id})` : `Sector Admin (${authenticatedUser?.username || "admin"})`;
+  const submitterId = isEmployeeMode ? emp.id : (authenticatedUser?.username || "admin");
   const newTicket = {
-    id: newId,
-    orgId: org.orgId,
-    sector: org.sector,
-    submitter: submitterName,
-    submitterId: submitterId,
+    id: newId, orgId: org.orgId, sector: org.sector,
+    submitter: submitterName, submitterId,
+    employee_id: isEmployeeMode ? emp.id : undefined,
     role: isEmployeeMode ? "employee" : "admin",
-    target: target,
-    subject: subject,
-    details: details,
-    priority: priority,
-    status: "Open",
-    adminNotes: "",
-    response: "",
-    resolvedBy: ""
+    target, subject, details, priority, status: "Open",
+    adminNotes: "", response: "", resolvedBy: ""
   };
 
-  supportQueries.unshift(newTicket);
-  closeUniversalModal();
-
-  if (isEmployeeMode) {
-    renderEmployeeTicketsView();
-    renderEmployeeRecentTicketsWidget();
-  } else {
-    renderAdminTicketsView();
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/supportQueries`, {
+      method: "POST",
+      body: JSON.stringify({ external_id: newId, payload: newTicket })
+    });
+    if (!org.supportQueries) org.supportQueries = [];
+    org.supportQueries.unshift(saved);
+    supportQueries = [...(org.supportQueries || [])];
+    closeUniversalModal();
+    if (isEmployeeMode) {
+      renderEmployeeTicketsView();
+      renderEmployeeRecentTicketsWidget();
+    } else renderAdminTicketsView();
+    showToast(`Ticket #${newId} saved to the server.`);
+  } catch (error) {
+    showToast(`Ticket was not saved: ${error.message}`);
   }
-
-  showToast(`Ticket #${newId} raised successfully!`);
 }
 
 function renderEmployeeTicketsView() {
@@ -4357,31 +4353,35 @@ function calculateLeaveDays() {
   }
 }
 
-function submitEmployeeLeaveApplication() {
+async function submitEmployeeLeaveApplication() {
   const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
+  const emp = (org.employees || []).find(e => e.id === currentEmployeeId);
+  if (!emp) return showToast("Employee profile is not available.");
   const type = document.getElementById("leaveFormType")?.value || "Casual Leave";
-  const start = document.getElementById("leaveFormStart")?.value || "2026-11-20";
-  const end = document.getElementById("leaveFormEnd")?.value || "2026-11-21";
+  const start = document.getElementById("leaveFormStart")?.value || "";
+  const end = document.getElementById("leaveFormEnd")?.value || "";
   const reason = (document.getElementById("leaveFormReason")?.value || "").trim();
-
+  if (!start || !end || end < start) return showToast("Enter a valid leave date range.");
   if (!reason) return showToast("Please provide leave reason!");
 
-  if (!org.leaveRequests) org.leaveRequests = [];
-  org.leaveRequests.unshift({
-    id: `LR-${Math.floor(100 + Math.random() * 900)}`,
-    empId: emp.id,
-    empName: emp.name,
-    type: type,
-    start: start,
-    end: end,
-    days: 2,
-    reason: reason,
-    status: "Approved"
-  });
-
-  renderEmployeeLeaveHistory();
-  showToast("Leave request submitted and recorded!");
+  const request = {
+    id: `LR-${Date.now()}`, empId: emp.id, employee_id: emp.id,
+    empName: emp.name, type, start, end,
+    days: Math.max(1, Math.round((new Date(end) - new Date(start)) / 86400000) + 1),
+    reason, status: "Pending"
+  };
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/leaveRequests`, {
+      method: "POST",
+      body: JSON.stringify({ external_id: request.id, payload: request })
+    });
+    org.leaveRequests = org.leaveRequests || [];
+    org.leaveRequests.unshift(saved);
+    renderEmployeeLeaveHistory();
+    showToast("Leave request submitted for administrator approval.");
+  } catch (error) {
+    showToast(`Leave request was not saved: ${error.message}`);
+  }
 }
 
 function renderEmployeePayslipsView() {
