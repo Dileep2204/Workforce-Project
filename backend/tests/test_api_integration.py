@@ -158,3 +158,25 @@ def test_employee_messages_and_tasks_are_tenant_owned(client):
     snapshot = client.get(f"/api/v1/organizations/{client.org_code}/snapshot", headers=employee).json()["resources"]
     assert snapshot["tasks"][0]["id"] == "TASK-400"
     assert snapshot["messages"][0]["id"] == "MSG-400"
+
+
+def test_generic_employee_resource_writes_cannot_store_passwords(client):
+    admin = login(client, "test-admin", "AdminPassword!123", client.org_code)
+    rejected_create = client.post(
+        f"/api/v1/organizations/{client.org_code}/resources/employees",
+        headers=admin,
+        json={"external_id": "BAD-EMP", "payload": {"id": "BAD-EMP", "password": "PlainTextPassword"}}
+    )
+    assert rejected_create.status_code == 405
+    provision = client.post(f"/api/v1/organizations/{client.org_code}/employees", headers=admin, json={
+        "username": "EMP-500", "password": "EmployeePassword!123",
+        "full_name": "Password Guard", "employee_id": "EMP-500",
+        "employee": {"id": "EMP-500", "name": "Password Guard"}
+    })
+    assert provision.status_code == 201
+    rejected_update = client.patch(
+        f"/api/v1/organizations/{client.org_code}/resources/employees/EMP-500",
+        headers=admin,
+        json={"payload": {"id": "EMP-500", "employee_id": "EMP-500", "password": "PlainTextPassword"}}
+    )
+    assert rejected_update.status_code == 422
