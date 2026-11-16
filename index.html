@@ -3351,31 +3351,19 @@ function openAddShiftModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveNewShift() {
+async function saveNewShift() {
   const name = (document.getElementById("newShiftName")?.value || "").trim();
   const start = document.getElementById("newShiftStart")?.value || "08:00";
   const end = document.getElementById("newShiftEnd")?.value || "17:00";
-  const req = Number(document.getElementById("newShiftRequired")?.value) || 20;
-
-  if (!name) {
-    showToast("Please enter a shift name!");
-    return;
-  }
-
+  const req = Number(document.getElementById("newShiftRequired")?.value) || 0;
+  if (!name || req < 0) return showToast("Enter a valid shift name and staffing requirement.");
   const org = organizations[currentOrgId];
-  if (!org.shifts) org.shifts = [];
-
-  org.shifts.unshift({
-    name: name,
-    hours: `${start} - ${end}`,
-    required: req,
-    allocated: req,
-    status: "Optimal"
-  });
-
-  closeUniversalModal();
-  renderShiftsRoster();
-  showToast(`Shift "${name}" added successfully!`);
+  const record = { id: `SH-${Date.now()}`, name, hours: `${start} - ${end}`, required: req, allocated: 0, status: "Understaffed" };
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/shifts`, {method:"POST",body:JSON.stringify({external_id:record.id,payload:record})});
+    org.shifts = org.shifts || []; org.shifts.unshift(saved);
+    closeUniversalModal(); renderShiftsRoster(); showToast("Shift saved to the server.");
+  } catch(error) { showToast(`Shift was not saved: ${error.message}`); }
 }
 
 /* ==============================================================
@@ -3432,39 +3420,21 @@ function openEditShiftModal(idx) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveEditedShift(idx) {
-  const org = organizations[currentOrgId];
-  const s = (org.shifts || [])[idx];
-  if (!s) return;
-
-  const name = (document.getElementById("editShiftName")?.value || "").trim();
-  const start = document.getElementById("editShiftStart")?.value || "08:00";
-  const end = document.getElementById("editShiftEnd")?.value || "17:00";
-  const req = Number(document.getElementById("editShiftRequired")?.value) || 0;
-  const alloc = Number(document.getElementById("editShiftAllocated")?.value) || 0;
-  const status = document.getElementById("editShiftStatus")?.value || "Optimal";
-
-  if (!name) return showToast("Please enter a shift name!");
-
-  s.name = name;
-  s.hours = `${start} - ${end}`;
-  s.required = req;
-  s.allocated = alloc;
-  s.status = status;
-
-  closeUniversalModal();
-  renderShiftsRoster();
-  showToast(`Shift "${name}" updated successfully!`);
+async function saveEditedShift(idx) {
+  const org = organizations[currentOrgId], shift = (org.shifts || [])[idx];
+  if (!shift) return;
+  const name=(document.getElementById("editShiftName")?.value||"").trim();
+  const start=document.getElementById("editShiftStart")?.value||"08:00";
+  const end=document.getElementById("editShiftEnd")?.value||"17:00";
+  if(!name) return showToast("Please enter a shift name.");
+  const updated={...shift,name,hours:`${start} - ${end}`,required:Number(document.getElementById("editShiftRequired")?.value)||0,allocated:Number(document.getElementById("editShiftAllocated")?.value)||0,status:document.getElementById("editShiftStatus")?.value||"Optimal"};
+  try {
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/shifts/${encodeURIComponent(shift.id)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});
+    org.shifts[idx]=saved; closeUniversalModal(); renderShiftsRoster(); showToast("Shift updated on the server.");
+  } catch(error){showToast(`Shift update failed: ${error.message}`);}
 }
 
-function deleteShift(idx) {
-  const org = organizations[currentOrgId];
-  if (!org.shifts) return;
-  const removed = org.shifts.splice(idx, 1);
-  closeUniversalModal();
-  renderShiftsRoster();
-  showToast(`Shift "${removed[0]?.name || 'Window'}" removed.`);
-}
+
 
 function openChangeEmployeeShiftModal(empId) {
   const org = organizations[currentOrgId];
@@ -3743,60 +3713,35 @@ function openAddEmployeeModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveNewEmployeeWithCredentials() {
+async function saveNewEmployeeWithCredentials() {
   const name = (document.getElementById("addEmpName")?.value || "").trim();
   const rawId = (document.getElementById("addEmpId")?.value || "").trim().toUpperCase();
-  const pass = (document.getElementById("addEmpPass")?.value || "").trim();
+  const pass = (document.getElementById("addEmpPass")?.value || "");
   const dept = document.getElementById("addEmpDept")?.value || "Operations";
   const role = (document.getElementById("addEmpRole")?.value || "Staff Member").trim();
-  const basePay = Number(document.getElementById("addEmpBasePay")?.value) || 70000;
-  const attended = Number(document.getElementById("addEmpAttended")?.value) || 24;
-
-  if (!name || !rawId || !pass) {
-    showToast("Please provide Name, Login ID, and Password!");
-    return;
-  }
-
+  const basePay = Number(document.getElementById("addEmpBasePay")?.value) || 0;
+  const attended = Number(document.getElementById("addEmpAttended")?.value) || 0;
+  if (!name || !rawId || pass.length < 12) return showToast("Enter name, employee ID and a password of at least 12 characters.");
   const org = organizations[currentOrgId];
-  if (!org.employees) org.employees = [];
-
-  const exists = org.employees.some(e => e.id === rawId);
-  if (exists) {
-    showToast(`Employee ID "${rawId}" is already registered!`);
-    return;
-  }
-
-  const newEmp = {
-    id: rawId,
-    name: name,
-    dept: dept,
-    role: role,
-    shift: "Morning A (08:00 - 16:30)",
-    login: "08:45",
-    logout: "—",
-    task: "Initial Operational Duties",
-    status: "Present",
-    basePay: basePay,
-    attendedDays: attended,
-    totalDays: 26,
-    otPay: 0,
-    deductions: Math.round(basePay * 0.12),
-    email: `${rawId.toLowerCase()}@${org.orgId.toLowerCase()}.org`,
-    password: pass,
-    casualLeaves: 6,
-    sickLeaves: 4,
-    privilegeLeaves: 12
+  if ((org.employees || []).some(e => e.id === rawId)) return showToast("Employee ID already exists.");
+  const email = `${rawId.toLowerCase()}@${org.orgId.toLowerCase()}.org`;
+  const employee = {
+    id: rawId, name, dept, role, shift: "", status: "Absent", basePay,
+    attendedDays: attended, totalDays: 26, otPay: 0, deductions: 0,
+    email, casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12
   };
-
-  org.employees.unshift(newEmp);
-  org.totalStaff = (org.totalStaff || 0) + 1;
-  org.present = (org.present || 0) + 1;
-
-  closeUniversalModal();
-  renderEmployeeDirectory();
-  renderDashEmployees();
-  renderPayslips();
-  showToast(`Credentials created for ${name}! (ID: ${rawId} | Pass: ${pass})`);
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/employees`, {
+      method: "POST",
+      body: JSON.stringify({ username: rawId, password: pass, full_name: name, employee_id: rawId, employee })
+    });
+    org.employees = org.employees || [];
+    org.employees.unshift(saved.employee);
+    org.totalStaff = org.employees.length;
+    closeUniversalModal();
+    renderEmployeeDirectory(); renderDashEmployees(); renderPayslips();
+    showToast(`Employee ${name} and login account created. Share credentials securely.`);
+  } catch (error) { showToast(`Employee was not saved: ${error.message}`); }
 }
 
 function renderEmployeeDirectory() {
