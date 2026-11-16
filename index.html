@@ -2150,6 +2150,7 @@ function mapApiOrganization(snapshot) {
     workloadRequests: data.workloadRequests || [],
     chats: Object.fromEntries((data.chats || []).map(x => [x.id, x])),
     supportQueries: data.supportQueries || [],
+    deletionAudits: data.deletionAudits || [],
     attendanceLogs: data.attendanceLogs || [],
     payslips: data.payslips || [],
     notifications: data.notifications || [],
