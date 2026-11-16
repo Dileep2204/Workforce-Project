@@ -898,7 +898,7 @@ button, input, select, textarea { font: inherit; }
     <input id="username" value="admin" placeholder="e.g. admin or custom username">
 
     <label>Password</label>
-    <input id="password" type="password" value="admin123" placeholder="Password">
+    <input id="password" type="password" value="" autocomplete="current-password" placeholder="Password">
 
     <button id="btnSubmitLogin" class="btn btn-blue" style="width:100%;margin-top:18px;padding:12px" onclick="login()">Sign In Securely</button>
 
@@ -1233,7 +1233,7 @@ button, input, select, textarea { font: inherit; }
                   <th>DEPARTMENT</th>
                   <th>ROLE</th>
                   <th>ASSIGNED SHIFT</th>
-                  <th>PASSWORD</th>
+                  <th>LOGIN ID</th>
                   <th>ATTENDED DAYS</th>
                   <th>BASE / PER-DAY</th>
                   <th>EARNED SALARY</th>
@@ -1302,8 +1302,9 @@ button, input, select, textarea { font: inherit; }
       </section>
 
       <section id="view-attendance" class="view-section hidden">
-        <div class="dash-head"><div><h1>Attendance Logs & Attendance Days</h1><div class="sub">Biometric logs and duty records</div></div></div>
+        <div class="dash-head"><div><h1>Attendance Logs & Attendance Days</h1><div class="sub">Server-recorded biometric/check-in logs and duty records</div></div></div>
         <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>EMPLOYEE</th><th>VERIFIED LOCATION</th><th>CLOCK IN</th><th>CLOCK OUT</th><th>TOTAL ATTENDED DAYS</th><th>STATUS</th></tr></thead><tbody id="attendanceLogsRows"></tbody></table></div></div>
+        <div class="panel" style="margin-top:18px"><h3>Leave requests awaiting approval</h3><div class="table-wrap"><table class="table"><thead><tr><th>EMPLOYEE</th><th>TYPE / DATES</th><th>DAYS</th><th>REASON</th><th>STATUS</th><th>DECISION</th></tr></thead><tbody id="adminLeaveQueueRows"></tbody></table></div></div>
       </section>
 
       <!-- Shifts & Roster Management -->
@@ -1505,6 +1506,11 @@ button, input, select, textarea { font: inherit; }
           <div class="kpi"><div class="label">LEAVE BALANCE</div><div class="value" id="essTotalLeaveCount">22 Days</div><div class="trend">CL / SL / PL Available</div></div>
           <div class="kpi"><div class="label">ACTIVE WORK ORDERS</div><div class="value" id="essActiveTasksCount" style="color:var(--blue)">2</div><div class="trend">Dispatched</div></div>
           <div class="kpi"><div class="label">CALCULATED TAKE-HOME SALARY</div><div class="value" id="essNetPayValue" style="color:var(--green)">₹ 1,52,307</div><div class="trend" style="color:var(--green)">Attendance-Calculated</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px">
+          <h3>🔔 My Notifications</h3>
+          <div id="employeeNotificationsList" style="display:grid;gap:8px"><div style="color:var(--muted);font-size:12px">No new notifications.</div></div>
         </div>
 
         <!-- Recent Tickets Tracker Mini-Widget -->
@@ -1794,7 +1800,7 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Hospital",
     name: "Apex Healthcare & Research Institute (Main Branch)",
     adminUser: "admin",
-    adminPass: "admin123",
+    
     icon: "🏥",
     totalStaff: 248,
     present: 221,
@@ -1803,10 +1809,10 @@ const INITIAL_ORGANIZATIONS = {
     absent: 27,
     departments: ["Emergency", "Nursing", "Diagnostics", "Pharmacy"],
     employees: [
-      { id: "E-1024", name: "Dr. Ananya Rao", dept: "Emergency", role: "Chief Trauma Specialist", shift: "Morning A (08:00 - 16:30)", login: "08:54", logout: "—", task: "Trauma Ward Acute Care", status: "Present", basePay: 180000, attendedDays: 24, totalDays: 26, otPay: 14500, deductions: 22000, email: "a.rao@apexhealth.org", password: "password123", casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 },
-      { id: "E-1041", name: "Rahul Menon", dept: "Nursing", role: "Senior Staff Nurse", shift: "General (09:00 - 17:30)", login: "09:18", logout: "—", task: "Ward B Post-Op Monitoring", status: "Late", basePay: 65000, attendedDays: 22, totalDays: 26, otPay: 4200, deductions: 6800, email: "r.menon@apexhealth.org", password: "password123", casualLeaves: 5, sickLeaves: 3, privilegeLeaves: 10 },
-      { id: "E-1088", name: "Priya Shah", dept: "Diagnostics", role: "Senior Radiologist", shift: "Morning B (08:30 - 17:00)", login: "08:41", logout: "17:32", task: "CT/MRI Diagnostic Queue", status: "Present", basePay: 140000, attendedDays: 25, totalDays: 26, otPay: 8000, deductions: 16500, email: "p.shah@apexhealth.org", password: "password123", casualLeaves: 7, sickLeaves: 5, privilegeLeaves: 14 },
-      { id: "E-001", name: "Dr. Dileep", dept: "Nursing", role: "Clinical Operations Lead", shift: "Morning A (08:00 - 16:30)", login: "07:48", logout: "—", task: "Patient Intake & Roster Triage", status: "Present", basePay: 175000, attendedDays: 26, totalDays: 26, otPay: 12000, deductions: 21000, email: "dileep@apexhealth.org", password: "password123", casualLeaves: 8, sickLeaves: 4, privilegeLeaves: 10 }
+      { id: "E-1024", name: "Dr. Ananya Rao", dept: "Emergency", role: "Chief Trauma Specialist", shift: "Morning A (08:00 - 16:30)", login: "08:54", logout: "—", task: "Trauma Ward Acute Care", status: "Present", basePay: 180000, attendedDays: 24, totalDays: 26, otPay: 14500, deductions: 22000, email: "a.rao@apexhealth.org",  casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 },
+      { id: "E-1041", name: "Rahul Menon", dept: "Nursing", role: "Senior Staff Nurse", shift: "General (09:00 - 17:30)", login: "09:18", logout: "—", task: "Ward B Post-Op Monitoring", status: "Late", basePay: 65000, attendedDays: 22, totalDays: 26, otPay: 4200, deductions: 6800, email: "r.menon@apexhealth.org", casualLeaves: 5, sickLeaves: 3, privilegeLeaves: 10 },
+      { id: "E-1088", name: "Priya Shah", dept: "Diagnostics", role: "Senior Radiologist", shift: "Morning B (08:30 - 17:00)", login: "08:41", logout: "17:32", task: "CT/MRI Diagnostic Queue", status: "Present", basePay: 140000, attendedDays: 25, totalDays: 26, otPay: 8000, deductions: 16500, email: "p.shah@apexhealth.org", casualLeaves: 7, sickLeaves: 5, privilegeLeaves: 14 },
+      { id: "E-001", name: "Dr. Dileep", dept: "Nursing", role: "Clinical Operations Lead", shift: "Morning A (08:00 - 16:30)", login: "07:48", logout: "—", task: "Patient Intake & Roster Triage", status: "Present", basePay: 175000, attendedDays: 26, totalDays: 26, otPay: 12000, deductions: 21000, email: "dileep@apexhealth.org", casualLeaves: 8, sickLeaves: 4, privilegeLeaves: 10 }
     ],
     tasks: [
       { id: "TSK-H1", title: "Emergency Trauma Duty", zone: "Ward A / Trauma", assignee: "Dr. Ananya Rao", priority: "High", progress: 85, status: "In Progress" },
@@ -1850,7 +1856,6 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Manufacturing",
     name: "Precision Forgings & Industrial Plant",
     adminUser: "admin",
-    adminPass: "admin123",
     icon: "🏭",
     totalStaff: 412,
     present: 388,
@@ -1859,7 +1864,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 24,
     departments: ["Production", "Quality", "Tooling"],
     employees: [
-      { id: "M-2041", name: "Ravi Kumar", dept: "Production", role: "CNC Lead Operator", shift: "Shift 1 (07:00 - 15:30)", login: "07:54", logout: "—", task: "Automated Line 02 Milling", status: "Present", basePay: 48000, attendedDays: 23, totalDays: 26, otPay: 7600, deductions: 5100, email: "r.kumar@precisionmfg.com", password: "password123", casualLeaves: 5, sickLeaves: 4, privilegeLeaves: 10 }
+      { id: "M-2041", name: "Ravi Kumar", dept: "Production", role: "CNC Lead Operator", shift: "Shift 1 (07:00 - 15:30)", login: "07:54", logout: "—", task: "Automated Line 02 Milling", status: "Present", basePay: 48000, attendedDays: 23, totalDays: 26, otPay: 7600, deductions: 5100, email: "r.kumar@precisionmfg.com", casualLeaves: 5, sickLeaves: 4, privilegeLeaves: 10 }
     ],
     tasks: [],
     shifts: [{ name: "Standard Operational Window", hours: "08:00 - 17:00", required: 30, allocated: 30, status: "Optimal" }],
@@ -1873,7 +1878,6 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Construction",
     name: "Skyline Infra & Metro Construction",
     adminUser: "admin",
-    adminPass: "admin123",
     icon: "🏗️",
     totalStaff: 310,
     present: 274,
@@ -1882,7 +1886,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 36,
     departments: ["Civil", "Safety", "Electrical"],
     employees: [
-      { id: "C-3011", name: "Arjun Reddy", dept: "Civil", role: "Site Resident Engineer", shift: "Site Day (08:00 - 17:00)", login: "08:06", logout: "—", task: "Tower B - Deck 8 Slab Pour", status: "Present", basePay: 82000, attendedDays: 24, totalDays: 26, otPay: 9800, deductions: 9100, email: "a.reddy@skylineinfra.com", password: "password123", casualLeaves: 6, sickLeaves: 3, privilegeLeaves: 12 }
+      { id: "C-3011", name: "Arjun Reddy", dept: "Civil", role: "Site Resident Engineer", shift: "Site Day (08:00 - 17:00)", login: "08:06", logout: "—", task: "Tower B - Deck 8 Slab Pour", status: "Present", basePay: 82000, attendedDays: 24, totalDays: 26, otPay: 9800, deductions: 9100, email: "a.reddy@skylineinfra.com", casualLeaves: 6, sickLeaves: 3, privilegeLeaves: 12 }
     ],
     tasks: [],
     shifts: [{ name: "Standard Operational Window", hours: "08:00 - 17:00", required: 30, allocated: 30, status: "Optimal" }],
@@ -1896,7 +1900,6 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Corporate",
     name: "Aether Technologies Global HQ",
     adminUser: "admin",
-    adminPass: "admin123",
     icon: "🏢",
     totalStaff: 195,
     present: 182,
@@ -1905,7 +1908,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 13,
     departments: ["Engineering", "Product", "Operations"],
     employees: [
-      { id: "P-4012", name: "Neha Sharma", dept: "Engineering", role: "Principal Architect", shift: "Flexible (09:00 - 18:00)", login: "09:02", logout: "—", task: "Project Orion Cloud Infrastructure", status: "Present", basePay: 210000, attendedDays: 25, totalDays: 26, otPay: 0, deductions: 28000, email: "n.sharma@aethertech.io", password: "password123", casualLeaves: 8, sickLeaves: 5, privilegeLeaves: 15 }
+      { id: "P-4012", name: "Neha Sharma", dept: "Engineering", role: "Principal Architect", shift: "Flexible (09:00 - 18:00)", login: "09:02", logout: "—", task: "Project Orion Cloud Infrastructure", status: "Present", basePay: 210000, attendedDays: 25, totalDays: 26, otPay: 0, deductions: 28000, email: "n.sharma@aethertech.io", casualLeaves: 8, sickLeaves: 5, privilegeLeaves: 15 }
     ],
     tasks: [],
     shifts: [{ name: "Corporate Core Hours", hours: "09:00 - 18:00", required: 120, allocated: 120, status: "Optimal" }],
@@ -2067,7 +2070,7 @@ function updateDemo(prefilledOrgId) {
     if (orgSel) orgSel.style.display = "none";
     if (orgInput) { orgInput.style.display = "block"; orgInput.value = "SUPER-ROOT"; }
     userInput.value = "superadmin";
-    passInput.value = "superadmin123";
+    passInput.value = "";
     return;
   }
 
@@ -2080,14 +2083,13 @@ function updateDemo(prefilledOrgId) {
     orgSel.value = activeOrg.orgId;
   }
   if (orgInput) orgInput.value = activeOrg.orgId;
-  userInput.value = activeOrg.adminUser;
-  passInput.value = activeOrg.adminPass;
+  userInput.value = "";
+  passInput.value = "";
 
   const demoEmp = (activeOrg.employees && activeOrg.employees.length > 0) ? activeOrg.employees[0].id : "E-1024";
   document.getElementById("demoNote").innerHTML = `
-    <b>Credentials for ${s} (${activeOrg.orgId}):</b><br>
-    • <b>Admin:</b> User: <code>${activeOrg.adminUser}</code> | Pass: <code>${activeOrg.adminPass}</code><br>
-    • <b>Staff ID:</b> User: <code>${demoEmp}</code> | Pass: <code>password123</code>
+    <b>Portal: ${s} (${activeOrg.orgId})</b><br>
+    Use the username and password issued by your organization administrator. Demo records are illustrative; access is verified by the connected API.
   `;
 }
 
@@ -2098,64 +2100,186 @@ function handleOrgSelectChange() {
     inp.value = sel.value;
     const orgObj = organizations[sel.value];
     if (orgObj) {
-      document.getElementById("username").value = orgObj.adminUser;
-      document.getElementById("password").value = orgObj.adminPass;
+      document.getElementById("username").value = "";
+      document.getElementById("password").value = "";
     }
   }
+}
+
+
+// ---------------- SSKATT API integration ----------------
+// Configure this to the deployed API origin when the backend is hosted.
+const SSKATT_API_BASE = window.SSKATT_API_BASE || "http://localhost:8000/api/v1";
+let sskattAccessToken = sessionStorage.getItem("sskatt_access_token") || "";
+let authenticatedUser = null;
+
+async function sskattApi(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (sskattAccessToken) headers.Authorization = `Bearer ${sskattAccessToken}`;
+  const response = await fetch(`${SSKATT_API_BASE}${path}`, { ...options, headers });
+  const body = response.status === 204 ? null : await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = body?.detail || body?.message || `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  return body;
+}
+
+function mapApiOrganization(snapshot) {
+  const data = snapshot.resources || {};
+  const orgInfo = snapshot.organization || {};
+  const org = {
+    orgId: orgInfo.code,
+    sector: orgInfo.sector,
+    name: orgInfo.name,
+    adminUser: authenticatedUser?.username || "",
+    icon: orgInfo.settings?.icon || (SECTOR_METADATA[orgInfo.sector] || {}).icon || "🏢",
+    totalStaff: (data.employees || []).length,
+    present: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "present").length,
+    working: 0,
+    late: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "late").length,
+    absent: 0,
+    departments: orgInfo.settings?.defaultDepts || [...new Set((data.employees || []).map(x => x.dept).filter(Boolean))],
+    employees: data.employees || [],
+    tasks: data.tasks || [],
+    shifts: data.shifts || [],
+    leaveRequests: data.leaveRequests || [],
+    resignations: data.resignations || [],
+    workloadRequests: data.workloadRequests || [],
+    chats: Object.fromEntries((data.chats || []).map(x => [x.id, x])),
+    supportQueries: data.supportQueries || [],
+    deletionAudits: data.deletionAudits || [],
+    attendanceLogs: data.attendanceLogs || [],
+    payslips: data.payslips || [],
+    notifications: data.notifications || [],
+    messages: data.messages || []
+  };
+  org.chats = org.chats || {};
+  (data.messages || []).forEach(message => {
+    const employeeId = message.employee_id || message.empId;
+    if (!employeeId) return;
+    org.chats[employeeId] = org.chats[employeeId] || [];
+    org.chats[employeeId].push(message);
+  });
+  org.working = org.present;
+  org.absent = Math.max(0, org.totalStaff - org.present);
+  return org;
+}
+
+async function loadOrganizationFromApi(code) {
+  const snapshot = await sskattApi(`/organizations/${encodeURIComponent(code)}/snapshot`);
+  const org = mapApiOrganization(snapshot);
+  organizations[org.orgId] = org;
+  return org;
+}
+
+async function restoreSskattSession() {
+  if (!sskattAccessToken) return;
+  try {
+    authenticatedUser = await sskattApi("/auth/me");
+    if (authenticatedUser.role === "superadmin") {
+      currentUserRole = "superadmin";
+      const allOrgs = await loadAllOrganizationsFromApi();
+      if (allOrgs.length) currentOrgId = allOrgs[0].orgId;
+      supportQueries = allOrgs.flatMap(o => o.supportQueries || []);
+      completeLogin("super-overview", "Session restored securely");
+      return;
+    }
+    currentOrgId = authenticatedUser.organization_code;
+    const org = await loadOrganizationFromApi(currentOrgId);
+    if (authenticatedUser.role === "admin") {
+      currentUserRole = "admin";
+      supportQueries = org.supportQueries || [];
+      completeLogin("dashboard", "Session restored securely");
+    } else if (authenticatedUser.role === "employee") {
+      currentUserRole = "employee";
+      currentEmployeeId = authenticatedUser.employee_id;
+      completeLogin("emp-overview", "Session restored securely");
+    } else {
+      throw new Error("Unsupported account role");
+    }
+  } catch (error) {
+    sskattAccessToken = "";
+    authenticatedUser = null;
+    sessionStorage.removeItem("sskatt_access_token");
+    console.warn("SSKATT session restore failed:", error.message);
+  }
+}
+
+async function loadAllOrganizationsFromApi() {
+  const records = await sskattApi("/organizations");
+  const loaded = [];
+  for (const item of records) {
+    const org = await loadOrganizationFromApi(item.code);
+    loaded.push(org);
+  }
+  return loaded;
 }
 
 async function login() {
   const chosenSector = document.getElementById("sectorSelect")?.value || "Hospital";
   const enteredOrgId = (document.getElementById("org").value || "").trim().toUpperCase();
   const userInput = (document.getElementById("username").value || "").trim();
-  const passInput = (document.getElementById("password").value || "").trim();
+  const passInput = (document.getElementById("password").value || "");
 
-  if (!userInput) {
-    showToast("Please enter username or employee ID");
+  if (!userInput || !passInput) {
+    showToast("Enter your username and password.");
     return;
   }
 
-  if (userInput.toLowerCase() === "superadmin" || chosenSector === "Other") {
-    if (passInput !== "superadmin123") {
-      showToast("Invalid password for Super Admin!");
+  const button = document.querySelector("#loginModal button[onclick='login()']");
+  if (button) button.disabled = true;
+  try {
+    const result = await sskattApi("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        organization_code: (userInput.toLowerCase() === "superadmin" || chosenSector === "Other") ? null : enteredOrgId,
+        username: userInput,
+        password: passInput
+      })
+    });
+    sskattAccessToken = result.access_token;
+    sessionStorage.setItem("sskatt_access_token", sskattAccessToken);
+    authenticatedUser = result.user;
+
+    if (authenticatedUser.role === "superadmin") {
+      currentUserRole = "superadmin";
+      const allOrgs = await loadAllOrganizationsFromApi();
+      if (allOrgs.length) currentOrgId = allOrgs[0].orgId;
+      supportQueries = allOrgs.flatMap(o => o.supportQueries || []);
+      deletionAudits = allOrgs.flatMap(o => o.deletionAudits || []);
+      completeLogin("super-overview", "Authenticated with SSKATT API as Super Admin");
       return;
     }
-    currentUserRole = "superadmin";
-    completeLogin("super-overview", "Authenticated as Platform Super Administrator (Root)");
-    return;
-  }
 
-  const targetOrg = organizations[enteredOrgId] || Object.values(organizations).find(o => o.sector === chosenSector);
-  if (!targetOrg) {
-    showToast(`Organization ID ${enteredOrgId} does not exist`);
-    return;
-  }
-
-  currentOrgId = targetOrg.orgId;
-
-  if (userInput.toLowerCase() === targetOrg.adminUser.toLowerCase() || userInput.toLowerCase() === "admin") {
-    if (passInput !== targetOrg.adminPass && passInput !== "admin123") {
-      showToast("Invalid password for Sector Admin!");
+    currentOrgId = authenticatedUser.organization_code;
+    const org = await loadOrganizationFromApi(currentOrgId);
+    org.adminUser = authenticatedUser.username;
+    if (authenticatedUser.role === "admin") {
+      currentUserRole = "admin";
+      supportQueries = org.supportQueries || [];
+      completeLogin("dashboard", `Signed in to ${org.name} (${org.orgId})`);
       return;
     }
-    currentUserRole = "admin";
-    completeLogin("dashboard", `Signed in as ${targetOrg.sector} Admin (${targetOrg.orgId})`);
-    return;
+
+    if (authenticatedUser.role === "employee") {
+      currentUserRole = "employee";
+      supportQueries = org.supportQueries || [];
+      currentEmployeeId = authenticatedUser.employee_id;
+      const employee = (org.employees || []).find(e => String(e.id || e.employee_id) === String(currentEmployeeId));
+      if (!employee) throw new Error("Your employee profile is not linked to this account. Contact your organization administrator.");
+      completeLogin("emp-overview", `Welcome back, ${employee.name || authenticatedUser.full_name}`);
+      return;
+    }
+    throw new Error("This account has an unsupported role.");
+  } catch (error) {
+    sskattAccessToken = "";
+    authenticatedUser = null;
+    sessionStorage.removeItem("sskatt_access_token");
+    showToast(error.message || "Unable to sign in. Check the API connection and credentials.");
+  } finally {
+    if (button) button.disabled = false;
   }
-
-  const matchedEmp = (targetOrg.employees || []).find(e => 
-    (e.id.toLowerCase() === userInput.toLowerCase() || e.name.toLowerCase() === userInput.toLowerCase()) &&
-    (e.password === passInput || passInput === "password123")
-  );
-
-  if (matchedEmp) {
-    currentUserRole = "employee";
-    currentEmployeeId = matchedEmp.id;
-    completeLogin("emp-overview", `Welcome back, ${matchedEmp.name} (${matchedEmp.id})`);
-    return;
-  }
-
-  showToast(`Invalid credentials for Organization ID ${enteredOrgId}`);
 }
 
 function completeLogin(targetTab, toastMsg) {
@@ -2544,25 +2668,15 @@ function openRectifyTicketModal(ticketId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveTicketRectification(ticketId) {
-  const q = supportQueries.find(x => x.id === ticketId);
-  const answer = (document.getElementById("superAdminAnswer")?.value || "").trim();
-
-  if (!answer) {
-    showToast("Please provide the resolution answer!");
-    return;
-  }
-
-  if (q) {
-    q.response = answer;
-    q.status = "Resolved";
-    q.resolvedBy = "Super Admin (Root)";
-  }
-
-  closeUniversalModal();
-  renderSuperQueriesView();
-  showToast(`Ticket #${ticketId} resolved and logged.`);
+async function saveTicketRectification(ticketId) {
+  const q=supportQueries.find(x=>x.id===ticketId),answer=(document.getElementById("superAdminAnswer")?.value||"").trim();
+  if(!q||!answer)return showToast("Provide a resolution answer.");
+  const updated={...q,response:answer,status:"Resolved",resolvedBy:"Super Admin (Root)"};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(q.orgId)}/resources/supportQueries/${encodeURIComponent(ticketId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(q,saved);closeUniversalModal();renderSuperQueriesView();showToast("Ticket resolution saved.");}
+  catch(error){showToast(`Ticket resolution failed: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    SECTOR ADMIN SUPPORT DESK & TICKET TRANSFER HIERARCHY
@@ -2646,24 +2760,25 @@ function openResolveTicketModal(ticketId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveAdminResolvedTicket(ticketId) {
+async function saveAdminResolvedTicket(ticketId) {
   const q = supportQueries.find(x => x.id === ticketId);
   const note = (document.getElementById("adminResolveNote")?.value || "").trim();
+  if (!note) return showToast("Please provide the resolution note!");
+  if (!q) return showToast("Ticket not found.");
 
-  if (!note) {
-    showToast("Please provide the resolution note!");
-    return;
+  const updated = { ...q, response: note, status: "Resolved",
+    resolvedBy: `Sector Admin (${authenticatedUser?.username || "admin"})` };
+  try {
+    await sskattApi(`/organizations/${encodeURIComponent(currentOrgId)}/resources/supportQueries/${encodeURIComponent(ticketId)}`, {
+      method: "PATCH", body: JSON.stringify({ payload: updated })
+    });
+    Object.assign(q, updated);
+    closeUniversalModal();
+    renderAdminTicketsView();
+    showToast(`Ticket #${ticketId} resolution saved.`);
+  } catch (error) {
+    showToast(`Ticket update failed: ${error.message}`);
   }
-
-  if (q) {
-    q.response = note;
-    q.status = "Resolved";
-    q.resolvedBy = `Sector Admin (${organizations[currentOrgId]?.adminUser})`;
-  }
-
-  closeUniversalModal();
-  renderAdminTicketsView();
-  showToast(`Ticket #${ticketId} marked as resolved!`);
 }
 
 function openTransferTicketModal(ticketId) {
@@ -2697,24 +2812,24 @@ function openTransferTicketModal(ticketId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function executeTicketTransfer(ticketId) {
+async function executeTicketTransfer(ticketId) {
   const q = supportQueries.find(x => x.id === ticketId);
   const notes = (document.getElementById("adminTransferNotes")?.value || "").trim();
+  if (!notes) return showToast("Please enter reason/notes for the Super Admin!");
+  if (!q) return showToast("Ticket not found.");
 
-  if (!notes) {
-    showToast("Please enter reason/notes for the Super Admin!");
-    return;
+  const updated = { ...q, status: "Transferred to Super Admin", target: "Super Admin", adminNotes: notes };
+  try {
+    await sskattApi(`/organizations/${encodeURIComponent(currentOrgId)}/resources/supportQueries/${encodeURIComponent(ticketId)}`, {
+      method: "PATCH", body: JSON.stringify({ payload: updated })
+    });
+    Object.assign(q, updated);
+    closeUniversalModal();
+    renderAdminTicketsView();
+    showToast(`Ticket #${ticketId} transferred to Super Admin.`);
+  } catch (error) {
+    showToast(`Ticket transfer failed: ${error.message}`);
   }
-
-  if (q) {
-    q.status = "Transferred to Super Admin";
-    q.target = "Super Admin";
-    q.adminNotes = notes;
-  }
-
-  closeUniversalModal();
-  renderAdminTicketsView();
-  showToast(`Ticket #${ticketId} transferred to Super Admin Control Center!`);
 }
 
 /* ==============================================================
@@ -2770,52 +2885,46 @@ function openRaiseTicketModal(isEmployeeMode) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveRaisedTicket(isEmployeeMode) {
+async function saveRaisedTicket(isEmployeeMode) {
   const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
+  const emp = (org.employees || []).find(e => e.id === currentEmployeeId);
+  if (isEmployeeMode && !emp) return showToast("Employee profile is not available.");
 
   const target = document.getElementById("ticketTargetRecipient")?.value || "Sector Admin";
   const subject = (document.getElementById("ticketSubjectInput")?.value || "").trim();
   const priority = document.getElementById("ticketPriorityInput")?.value || "Medium";
   const details = (document.getElementById("ticketDetailsInput")?.value || "").trim();
+  if (!subject || !details) return showToast("Please provide subject and ticket details!");
 
-  if (!subject || !details) {
-    showToast("Please provide subject and ticket details!");
-    return;
-  }
-
-  const newId = `QRY-${Math.floor(1000 + Math.random() * 9000)}`;
-  const submitterName = isEmployeeMode ? `${emp.name} (Staff ${emp.id})` : `Sector Admin (${org.adminUser})`;
-  const submitterId = isEmployeeMode ? emp.id : org.adminUser;
-
+  const newId = `QRY-${Date.now()}`;
+  const submitterName = isEmployeeMode ? `${emp.name} (Staff ${emp.id})` : `Sector Admin (${authenticatedUser?.username || "admin"})`;
+  const submitterId = isEmployeeMode ? emp.id : (authenticatedUser?.username || "admin");
   const newTicket = {
-    id: newId,
-    orgId: org.orgId,
-    sector: org.sector,
-    submitter: submitterName,
-    submitterId: submitterId,
+    id: newId, orgId: org.orgId, sector: org.sector,
+    submitter: submitterName, submitterId,
+    employee_id: isEmployeeMode ? emp.id : undefined,
     role: isEmployeeMode ? "employee" : "admin",
-    target: target,
-    subject: subject,
-    details: details,
-    priority: priority,
-    status: "Open",
-    adminNotes: "",
-    response: "",
-    resolvedBy: ""
+    target, subject, details, priority, status: "Open",
+    adminNotes: "", response: "", resolvedBy: ""
   };
 
-  supportQueries.unshift(newTicket);
-  closeUniversalModal();
-
-  if (isEmployeeMode) {
-    renderEmployeeTicketsView();
-    renderEmployeeRecentTicketsWidget();
-  } else {
-    renderAdminTicketsView();
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/supportQueries`, {
+      method: "POST",
+      body: JSON.stringify({ external_id: newId, payload: newTicket })
+    });
+    if (!org.supportQueries) org.supportQueries = [];
+    org.supportQueries.unshift(saved);
+    supportQueries = [...(org.supportQueries || [])];
+    closeUniversalModal();
+    if (isEmployeeMode) {
+      renderEmployeeTicketsView();
+      renderEmployeeRecentTicketsWidget();
+    } else renderAdminTicketsView();
+    showToast(`Ticket #${newId} saved to the server.`);
+  } catch (error) {
+    showToast(`Ticket was not saved: ${error.message}`);
   }
-
-  showToast(`Ticket #${newId} raised successfully!`);
 }
 
 function renderEmployeeTicketsView() {
@@ -3005,43 +3114,28 @@ function openConfirmDeletionModal(auditId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveConfirmedDeletion(auditId) {
-  const reason = (document.getElementById("superDeletionConfirmReason")?.value || "").trim();
-  if (!reason) {
-    showToast("Please enter mandatory deletion confirmation reason!");
-    return;
-  }
-
-  const item = deletionAudits.find(a => a.id === auditId);
-  if (item) {
-    item.status = "Confirmed & Purged";
-    item.superReason = reason;
-    item.resolvedDate = new Date().toLocaleString();
-
-    const org = organizations[item.orgId];
-    if (org && org.employees) {
-      org.employees = org.employees.filter(e => e.id !== item.empId);
-      org.totalStaff = Math.max(0, (org.totalStaff || 1) - 1);
-    }
-  }
-
-  closeUniversalModal();
-  renderSuperRetentionsView();
-  showToast(`Employee record permanently purged under audit #${auditId}.`);
+async function saveConfirmedDeletion(auditId) {
+  const reason=(document.getElementById("superDeletionConfirmReason")?.value||"").trim();
+  const item=deletionAudits.find(a=>a.id===auditId);
+  if(!reason||!item)return showToast("Enter the mandatory confirmation reason.");
+  const org=organizations[item.orgId];if(!org)return showToast("Organization is not loaded.");
+  const updated={...item,status:"Confirmed & Purged",superReason:reason,resolvedDate:new Date().toISOString()};
+  try{
+    await sskattApi(`/organizations/${encodeURIComponent(item.orgId)}/employees/${encodeURIComponent(item.empId)}/deactivate`,{method:"POST"});
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(item.orgId)}/resources/deletionAudits/${encodeURIComponent(auditId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});
+    Object.assign(item,saved);org.employees=(org.employees||[]).filter(e=>e.id!==item.empId);
+    closeUniversalModal();renderSuperRetentionsView();showToast("Employee account deactivated; records retained for audit.");
+  }catch(error){showToast(`Deactivation failed: ${error.message}`);}
 }
 
-function rejectAndRestoreEmployee(auditId) {
-  const item = deletionAudits.find(a => a.id === auditId);
-  if (item) {
-    item.status = "Rejected / Restored";
-    item.superReason = "Deletion rejected by Super Admin. Employee restored to active directory.";
-    item.resolvedDate = new Date().toLocaleString();
-  }
-
-  closeUniversalModal();
-  renderSuperRetentionsView();
-  showToast(`Deletion request #${auditId} rejected. Employee remains active.`);
+async function rejectAndRestoreEmployee(auditId) {
+  const item=deletionAudits.find(a=>a.id===auditId);if(!item)return;
+  const updated={...item,status:"Rejected / Restored",superReason:"Deletion rejected by Super Admin. Employee remains active.",resolvedDate:new Date().toISOString()};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(item.orgId)}/resources/deletionAudits/${encodeURIComponent(auditId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(item,saved);closeUniversalModal();renderSuperRetentionsView();showToast("Deletion request rejected; employee remains active.");}
+  catch(error){showToast(`Decision failed: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    SECTOR ADMIN DELETION INITIATION ENGINE
@@ -3077,36 +3171,16 @@ function initiateAdminEmployeeDeletion(empId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function submitAdminEmployeeDeletionRequest(empId) {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === empId);
-  const reason = (document.getElementById("adminDeleteReasonInput")?.value || "").trim();
-
-  if (!reason) {
-    showToast("Please specify the deletion reason!");
-    return;
-  }
-
-  const auditId = `DEL-${Math.floor(1000 + Math.random() * 9000)}`;
-  deletionAudits.unshift({
-    id: auditId,
-    orgId: org.orgId,
-    sector: org.sector,
-    empId: emp.id,
-    empName: emp.name,
-    dept: emp.dept,
-    role: emp.role,
-    initiatedBy: `${org.adminUser} (${org.sector} Admin)`,
-    initiatedDate: new Date().toLocaleString(),
-    adminReason: reason,
-    status: "Pending Confirmation",
-    superReason: "",
-    resolvedDate: ""
-  });
-
-  closeUniversalModal();
-  showToast(`Deletion request for ${emp.name} submitted to Super Admin Desk!`);
+async function submitAdminEmployeeDeletionRequest(empId) {
+  const org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===empId);
+  const reason=(document.getElementById("adminDeleteReasonInput")?.value||"").trim();
+  if(!emp||!reason)return showToast("Specify the deletion reason.");
+  const id=`DEL-${Date.now()}`,record={id,orgId:org.orgId,sector:org.sector,empId:emp.id,employee_id:emp.id,empName:emp.name,dept:emp.dept,role:emp.role,initiatedBy:authenticatedUser?.username||"admin",initiatedDate:new Date().toISOString(),adminReason:reason,status:"Pending Confirmation",superReason:"",resolvedDate:""};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/deletionAudits`,{method:"POST",body:JSON.stringify({external_id:id,payload:record})});deletionAudits.unshift(saved);org.deletionAudits=org.deletionAudits||[];org.deletionAudits.unshift(saved);closeUniversalModal();showToast("Deletion request saved for Super Admin review.");}
+  catch(error){showToast(`Deletion request failed: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    WORK ASSIGNMENT ENGINE
@@ -3129,9 +3203,17 @@ function renderWorkAssignments() {
       <td><span class="status" style="${t.priority === 'High' ? 'background:#fee2e2;color:#b91c1c' : ''}">${t.priority}</span></td>
       <td>${t.progress}%</td>
       <td><span class="status in-progress">${t.status}</span></td>
-      <td><button class="action" onclick="openAssignTaskModal('${t.assignee}')">Reassign</button></td>
+      <td><button class="action" onclick="openAssignTaskModal('${t.assignee}')">Reassign</button> <button class="action action-primary" onclick="completeWorkOrder('${t.id}')">Complete</button></td>
     </tr>
   `).join("");
+}
+
+async function completeWorkOrder(taskId){
+  const org=organizations[currentOrgId],task=(org.tasks||[]).find(t=>t.id===taskId);if(!task)return;
+  if(task.status==="Completed")return showToast("Work order is already completed.");
+  const updated={...task,status:"Completed",progress:100,completedAt:new Date().toISOString()};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/tasks/${encodeURIComponent(taskId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(task,saved);renderWorkAssignments();showToast("Work order completion saved.");}
+  catch(error){showToast(`Could not update work order: ${error.message}`);}
 }
 
 function openAssignTaskModal(prefilledAssignee) {
@@ -3184,36 +3266,18 @@ function openAssignTaskModal(prefilledAssignee) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveDispatchedWorkOrder() {
-  const org = organizations[currentOrgId];
-  const title = (document.getElementById("assignTaskTitle")?.value || "").trim();
-  const assignee = document.getElementById("assignTaskAssignee")?.value || "Unassigned";
-  const zone = (document.getElementById("assignTaskZone")?.value || "Main Facility").trim();
-  const priority = document.getElementById("assignTaskPriority")?.value || "Medium";
-  const progress = Number(document.getElementById("assignTaskProgress")?.value) || 10;
-
-  if (!title) {
-    showToast("Please provide a task scope description!");
-    return;
-  }
-
-  const prefix = org.orgId.split('-')[0] || 'TSK';
-  const newTaskId = `TSK-${prefix}${Math.floor(10 + Math.random() * 90)}`;
-
-  if (!org.tasks) org.tasks = [];
-  org.tasks.unshift({
-    id: newTaskId,
-    title: title,
-    zone: zone,
-    assignee: assignee,
-    priority: priority,
-    progress: progress,
-    status: progress === 100 ? "Completed" : "In Progress"
-  });
-
-  closeUniversalModal();
-  renderWorkAssignments();
-  showToast(`Work order "${newTaskId}" assigned to ${assignee}!`);
+async function saveDispatchedWorkOrder() {
+  const org=organizations[currentOrgId], title=(document.getElementById("assignTaskTitle")?.value||"").trim();
+  const assignee=document.getElementById("assignTaskAssignee")?.value||"Unassigned";
+  const employee=(org.employees||[]).find(e=>e.name===assignee);
+  const zone=(document.getElementById("assignTaskZone")?.value||"Main Facility").trim();
+  const priority=document.getElementById("assignTaskPriority")?.value||"Medium";
+  const progress=Number(document.getElementById("assignTaskProgress")?.value)||10;
+  if(!title||!employee)return showToast("Enter task title and choose a valid employee.");
+  const id=`TSK-${org.orgId.split("-")[0]}-${Date.now()}`;
+  const task={id,title,zone,assignee:employee.name,employee_id:employee.id,empId:employee.id,priority,progress,status:progress===100?"Completed":"In Progress"};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/tasks`,{method:"POST",body:JSON.stringify({external_id:id,payload:task})});org.tasks=org.tasks||[];org.tasks.unshift(saved);closeUniversalModal();renderWorkAssignments();showToast("Work order saved and assigned.");}
+  catch(error){showToast(`Work order was not saved: ${error.message}`);}
 }
 
 function openAddShiftModal() {
@@ -3244,31 +3308,19 @@ function openAddShiftModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveNewShift() {
+async function saveNewShift() {
   const name = (document.getElementById("newShiftName")?.value || "").trim();
   const start = document.getElementById("newShiftStart")?.value || "08:00";
   const end = document.getElementById("newShiftEnd")?.value || "17:00";
-  const req = Number(document.getElementById("newShiftRequired")?.value) || 20;
-
-  if (!name) {
-    showToast("Please enter a shift name!");
-    return;
-  }
-
+  const req = Number(document.getElementById("newShiftRequired")?.value) || 0;
+  if (!name || req < 0) return showToast("Enter a valid shift name and staffing requirement.");
   const org = organizations[currentOrgId];
-  if (!org.shifts) org.shifts = [];
-
-  org.shifts.unshift({
-    name: name,
-    hours: `${start} - ${end}`,
-    required: req,
-    allocated: req,
-    status: "Optimal"
-  });
-
-  closeUniversalModal();
-  renderShiftsRoster();
-  showToast(`Shift "${name}" added successfully!`);
+  const record = { id: `SH-${Date.now()}`, name, hours: `${start} - ${end}`, required: req, allocated: 0, status: "Understaffed" };
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/shifts`, {method:"POST",body:JSON.stringify({external_id:record.id,payload:record})});
+    org.shifts = org.shifts || []; org.shifts.unshift(saved);
+    closeUniversalModal(); renderShiftsRoster(); showToast("Shift saved to the server.");
+  } catch(error) { showToast(`Shift was not saved: ${error.message}`); }
 }
 
 /* ==============================================================
@@ -3325,38 +3377,27 @@ function openEditShiftModal(idx) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveEditedShift(idx) {
-  const org = organizations[currentOrgId];
-  const s = (org.shifts || [])[idx];
-  if (!s) return;
-
-  const name = (document.getElementById("editShiftName")?.value || "").trim();
-  const start = document.getElementById("editShiftStart")?.value || "08:00";
-  const end = document.getElementById("editShiftEnd")?.value || "17:00";
-  const req = Number(document.getElementById("editShiftRequired")?.value) || 0;
-  const alloc = Number(document.getElementById("editShiftAllocated")?.value) || 0;
-  const status = document.getElementById("editShiftStatus")?.value || "Optimal";
-
-  if (!name) return showToast("Please enter a shift name!");
-
-  s.name = name;
-  s.hours = `${start} - ${end}`;
-  s.required = req;
-  s.allocated = alloc;
-  s.status = status;
-
-  closeUniversalModal();
-  renderShiftsRoster();
-  showToast(`Shift "${name}" updated successfully!`);
+async function saveEditedShift(idx) {
+  const org = organizations[currentOrgId], shift = (org.shifts || [])[idx];
+  if (!shift) return;
+  const name=(document.getElementById("editShiftName")?.value||"").trim();
+  const start=document.getElementById("editShiftStart")?.value||"08:00";
+  const end=document.getElementById("editShiftEnd")?.value||"17:00";
+  if(!name) return showToast("Please enter a shift name.");
+  const updated={...shift,name,hours:`${start} - ${end}`,required:Number(document.getElementById("editShiftRequired")?.value)||0,allocated:Number(document.getElementById("editShiftAllocated")?.value)||0,status:document.getElementById("editShiftStatus")?.value||"Optimal"};
+  try {
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/shifts/${encodeURIComponent(shift.id)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});
+    org.shifts[idx]=saved; closeUniversalModal(); renderShiftsRoster(); showToast("Shift updated on the server.");
+  } catch(error){showToast(`Shift update failed: ${error.message}`);}
 }
 
-function deleteShift(idx) {
-  const org = organizations[currentOrgId];
-  if (!org.shifts) return;
-  const removed = org.shifts.splice(idx, 1);
-  closeUniversalModal();
-  renderShiftsRoster();
-  showToast(`Shift "${removed[0]?.name || 'Window'}" removed.`);
+
+
+async function deleteShift(idx){
+  const org=organizations[currentOrgId],shift=(org.shifts||[])[idx];if(!shift)return;
+  if(!confirm(`Delete shift "${shift.name}"?`))return;
+  try{await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/shifts/${encodeURIComponent(shift.id)}`,{method:"DELETE"});org.shifts.splice(idx,1);renderShiftsRoster();showToast("Shift deleted from the server.");}
+  catch(error){showToast(`Shift deletion failed: ${error.message}`);}
 }
 
 function openChangeEmployeeShiftModal(empId) {
@@ -3397,28 +3438,21 @@ function openChangeEmployeeShiftModal(empId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveEmployeeShiftChange(empId) {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === empId);
-  if (!emp) return;
-
-  const newShift = (document.getElementById("changeEmpShiftCustom")?.value || "").trim();
-  if (!newShift) return showToast("Please select or enter a shift window!");
-
-  emp.shift = newShift;
-  if (!org.chats) org.chats = {};
-  if (!org.chats[emp.id]) org.chats[emp.id] = [];
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[emp.id].push({
-    sender: "admin",
-    text: `🗓️ [SHIFT UPDATED]: Your assigned duty schedule has been updated to "${newShift}".`,
-    time: timeStr
-  });
-
-  closeUniversalModal();
-  renderEmployeeDirectory();
-  showToast(`Shift updated for ${emp.name}!`);
+async function saveEmployeeShiftChange(empId) {
+  const org=organizations[currentOrgId], emp=(org.employees||[]).find(e=>e.id===empId);
+  if(!emp)return;
+  const newShift=(document.getElementById("changeEmpShiftCustom")?.value||"").trim();
+  if(!newShift)return showToast("Please select or enter a shift window.");
+  const updated={...emp,shift:newShift};
+  try {
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/employees/${encodeURIComponent(emp.id)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});
+    Object.assign(emp,saved);
+    await persistEmployeeMessage(emp.id,`🗓️ Your assigned duty schedule is now ${newShift}.`,"admin");
+    closeUniversalModal();renderEmployeeDirectory();showToast("Employee shift assignment saved.");
+  }catch(error){showToast(`Shift assignment failed: ${error.message}`);}
 }
+
+
 
 function openRaiseWorkloadRequestModal() {
   const org = organizations[currentOrgId];
@@ -3450,35 +3484,15 @@ function openRaiseWorkloadRequestModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function submitEmployeeWorkloadRequest() {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const severity = document.getElementById("empLoadSeverity")?.value || "100% Full Load";
-  const explanation = (document.getElementById("empLoadExplanation")?.value || "").trim() || "Capacity at maximum.";
-
-  if (!org.workloadRequests) org.workloadRequests = [];
-  org.workloadRequests.unshift({
-    id: `WLD-${Math.floor(100 + Math.random() * 900)}`,
-    empId: emp.id,
-    empName: emp.name,
-    severity: severity,
-    tasks: "Current Active Queue",
-    explanation: explanation,
-    timestamp: "Just now",
-    status: "Pending Action"
-  });
-
-  if (!org.chats) org.chats = {};
-  if (!org.chats[emp.id]) org.chats[emp.id] = [];
-  org.chats[emp.id].push({
-    sender: "emp",
-    text: `⚠️ [CAPACITY ALERT - ${severity}]: "${explanation}"`,
-    time: "Just now"
-  });
-
-  closeUniversalModal();
-  renderEmployeeTasksView();
-  showToast("Workload alert sent to Sector Admin!");
+async function submitEmployeeWorkloadRequest() {
+  const org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===currentEmployeeId);
+  if(!emp)return;
+  const severity=document.getElementById("empLoadSeverity")?.value||"100% Full Load";
+  const explanation=(document.getElementById("empLoadExplanation")?.value||"").trim();
+  if(!explanation)return showToast("Please explain the workload issue.");
+  const id=`WLD-${Date.now()}`,record={id,empId:emp.id,employee_id:emp.id,empName:emp.name,severity,tasks:"Current Active Queue",explanation,timestamp:new Date().toISOString(),status:"Pending Action"};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/workloadRequests`,{method:"POST",body:JSON.stringify({external_id:id,payload:record})});org.workloadRequests=org.workloadRequests||[];org.workloadRequests.unshift(saved);closeUniversalModal();renderEmployeeTasksView();showToast("Workload alert submitted to the administrator.");}
+  catch(error){showToast(`Workload alert was not saved: ${error.message}`);}
 }
 
 function renderEmployeeTasksView() {
@@ -3570,12 +3584,11 @@ function renderAdminWorkloadAlerts() {
   `).join("");
 }
 
-function adminResolveWorkload(reqId) {
-  const org = organizations[currentOrgId];
-  const r = (org.workloadRequests || []).find(x => x.id === reqId);
-  if (r) r.status = "Resolved";
-  renderAdminWorkloadAlerts();
-  showToast("Workload alert marked as relieved!");
+async function adminResolveWorkload(reqId) {
+  const org=organizations[currentOrgId],record=(org.workloadRequests||[]).find(x=>x.id===reqId);if(!record)return;
+  const updated={...record,status:"Resolved",resolvedAt:new Date().toISOString()};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/workloadRequests/${encodeURIComponent(reqId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(record,saved);renderAdminWorkloadAlerts();showToast("Workload alert resolution saved.");}
+  catch(error){showToast(`Update failed: ${error.message}`);}
 }
 
 function openAddEmployeeModal() {
@@ -3599,7 +3612,7 @@ function openAddEmployeeModal() {
         </div>
         <div>
           <label>Login Password *</label>
-          <input id="addEmpPass" value="password123">
+          <input id="addEmpPass" type="password" minlength="12" autocomplete="new-password" placeholder="At least 12 characters">
         </div>
       </div>
 
@@ -3636,60 +3649,35 @@ function openAddEmployeeModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveNewEmployeeWithCredentials() {
+async function saveNewEmployeeWithCredentials() {
   const name = (document.getElementById("addEmpName")?.value || "").trim();
   const rawId = (document.getElementById("addEmpId")?.value || "").trim().toUpperCase();
-  const pass = (document.getElementById("addEmpPass")?.value || "").trim();
+  const pass = (document.getElementById("addEmpPass")?.value || "");
   const dept = document.getElementById("addEmpDept")?.value || "Operations";
   const role = (document.getElementById("addEmpRole")?.value || "Staff Member").trim();
-  const basePay = Number(document.getElementById("addEmpBasePay")?.value) || 70000;
-  const attended = Number(document.getElementById("addEmpAttended")?.value) || 24;
-
-  if (!name || !rawId || !pass) {
-    showToast("Please provide Name, Login ID, and Password!");
-    return;
-  }
-
+  const basePay = Number(document.getElementById("addEmpBasePay")?.value) || 0;
+  const attended = Number(document.getElementById("addEmpAttended")?.value) || 0;
+  if (!name || !rawId || pass.length < 12) return showToast("Enter name, employee ID and a password of at least 12 characters.");
   const org = organizations[currentOrgId];
-  if (!org.employees) org.employees = [];
-
-  const exists = org.employees.some(e => e.id === rawId);
-  if (exists) {
-    showToast(`Employee ID "${rawId}" is already registered!`);
-    return;
-  }
-
-  const newEmp = {
-    id: rawId,
-    name: name,
-    dept: dept,
-    role: role,
-    shift: "Morning A (08:00 - 16:30)",
-    login: "08:45",
-    logout: "—",
-    task: "Initial Operational Duties",
-    status: "Present",
-    basePay: basePay,
-    attendedDays: attended,
-    totalDays: 26,
-    otPay: 0,
-    deductions: Math.round(basePay * 0.12),
-    email: `${rawId.toLowerCase()}@${org.orgId.toLowerCase()}.org`,
-    password: pass,
-    casualLeaves: 6,
-    sickLeaves: 4,
-    privilegeLeaves: 12
+  if ((org.employees || []).some(e => e.id === rawId)) return showToast("Employee ID already exists.");
+  const email = `${rawId.toLowerCase()}@${org.orgId.toLowerCase()}.org`;
+  const employee = {
+    id: rawId, name, dept, role, shift: "", status: "Absent", basePay,
+    attendedDays: attended, totalDays: 26, otPay: 0, deductions: 0,
+    email, casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12
   };
-
-  org.employees.unshift(newEmp);
-  org.totalStaff = (org.totalStaff || 0) + 1;
-  org.present = (org.present || 0) + 1;
-
-  closeUniversalModal();
-  renderEmployeeDirectory();
-  renderDashEmployees();
-  renderPayslips();
-  showToast(`Credentials created for ${name}! (ID: ${rawId} | Pass: ${pass})`);
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/employees`, {
+      method: "POST",
+      body: JSON.stringify({ username: rawId, password: pass, full_name: name, employee_id: rawId, employee })
+    });
+    org.employees = org.employees || [];
+    org.employees.unshift(saved.employee);
+    org.totalStaff = org.employees.length;
+    closeUniversalModal();
+    renderEmployeeDirectory(); renderDashEmployees(); renderPayslips();
+    showToast(`Employee ${name} and login account created. Share credentials securely.`);
+  } catch (error) { showToast(`Employee was not saved: ${error.message}`); }
 }
 
 function renderEmployeeDirectory() {
@@ -3712,7 +3700,7 @@ function renderEmployeeDirectory() {
         <td>${escapeHtml(e.dept)}</td>
         <td>${escapeHtml(e.role)}</td>
         <td><span class="pill" style="font-size:10px">${escapeHtml(e.shift || 'Morning A (08:00 - 16:30)')}</span></td>
-        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${escapeHtml(e.password || 'password123')}</code></td>
+        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${escapeHtml(e.login || e.id)}</code></td>
         <td><b>${attended} / ${e.totalDays || 26} Days</b></td>
         <td>₹ ${e.basePay.toLocaleString('en-IN')} / ₹ ${calc.perDay}</td>
         <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
@@ -3746,7 +3734,7 @@ function openProvisionSectorModal() {
       <input id="provSectorOrgName" placeholder="e.g. Central Logistics Hub">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div><label>Admin User</label><input id="provSectorAdminUser" value="admin"></div>
-        <div><label>Admin Password</label><input id="provSectorAdminPass" value="admin123"></div>
+        <div><label>Admin Password</label><input id="provSectorAdminPass" type="password" minlength="12" placeholder="At least 12 characters"></div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
         <button class="btn" style="background:#f1f5f9" onclick="closeUniversalModal()">Cancel</button>
@@ -3758,67 +3746,58 @@ function openProvisionSectorModal() {
 }
 
 async function saveProvisionedSector() {
-  const rawKey = (document.getElementById("provSectorName")?.value || "").trim();
-  const icon = (document.getElementById("provSectorIcon")?.value || "🚀").trim();
-  const orgId = (document.getElementById("provSectorOrgId")?.value || "").trim().toUpperCase();
-  const facilityName = (document.getElementById("provSectorOrgName")?.value || "").trim() || `${rawKey} Central Hub`;
-  const adminUser = (document.getElementById("provSectorAdminUser")?.value || "admin").trim();
-  const adminPass = (document.getElementById("provSectorAdminPass")?.value || "admin123").trim();
-
-  if (!rawKey || !orgId) return showToast("Please fill all required fields!");
-
-  const sectorName = rawKey.charAt(0).toUpperCase() + rawKey.slice(1);
-  closeUniversalModal();
-
-  const prefix = orgId.split('-')[0] || 'ORG';
-  const leadEmpId = `${prefix}-1024`;
-
-  sectorMeta[sectorName] = { icon: icon, defaultDepts: ['Operations', 'Administration'] };
-  organizations[orgId] = {
-    orgId: orgId,
-    sector: sectorName,
-    name: facilityName,
-    adminUser: adminUser,
-    adminPass: adminPass,
-    icon: icon,
-    totalStaff: 48,
-    present: 44,
-    working: 40,
-    late: 4,
-    absent: 4,
-    departments: ['Operations', 'Administration'],
-    employees: [
-      { id: leadEmpId, name: `Lead Officer (${sectorName})`, dept: 'Operations', role: "Operations Specialist", shift: "Morning (08:30 - 17:00)", login: "08:35", logout: "—", task: "Facility Ramp-Up", status: "Present", basePay: 82000, attendedDays: 24, totalDays: 26, otPay: 4000, deductions: 9800, email: `lead@${orgId.toLowerCase()}.org`, password: "password123", casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 }
-    ],
-    tasks: [],
-    shifts: [{ name: "Standard Operational Window", hours: "08:00 - 17:00", required: 30, allocated: 30, status: "Optimal" }],
-    leaveRequests: [],
-    resignations: [],
-    workloadRequests: [],
-    chats: {}
-  };
-
-  renderLandingSectors();
-  populateSectorDropdown();
-  renderSuperFleet();
-  renderSuperSectorsView();
-  showToast(`Sector "${sectorName}" added successfully! 🎉`);
+  const rawKey=(document.getElementById("provSectorName")?.value||"").trim();
+  const icon=(document.getElementById("provSectorIcon")?.value||"🚀").trim();
+  const orgId=(document.getElementById("provSectorOrgId")?.value||"").trim().toUpperCase();
+  const facilityName=(document.getElementById("provSectorOrgName")?.value||"").trim()||`${rawKey} Central Hub`;
+  const adminUser=(document.getElementById("provSectorAdminUser")?.value||"admin").trim();
+  const adminPass=document.getElementById("provSectorAdminPass")?.value||"";
+  if(!rawKey||!orgId||!adminUser||adminPass.length<12)return showToast("Enter sector, organization ID, admin username and a password of at least 12 characters.");
+  const sectorName=rawKey.charAt(0).toUpperCase()+rawKey.slice(1);
+  try{
+    const result=await sskattApi("/organizations/provision",{method:"POST",body:JSON.stringify({
+      code:orgId,sector:sectorName,name:facilityName,settings:{icon,defaultDepts:["Operations","Administration"]},
+      admin_username:adminUser,admin_password:adminPass,admin_full_name:`${facilityName} Administrator`
+    })});
+    sectorMeta[sectorName]={icon,defaultDepts:["Operations","Administration"]};
+    const org=await loadOrganizationFromApi(orgId);
+    organizations[orgId]=org;
+    closeUniversalModal();renderLandingSectors();populateSectorDropdown();renderSuperFleet();renderSuperSectorsView();
+    showToast(`Organization ${orgId} and its admin account were created.`);
+  }catch(error){showToast(`Organization provisioning failed: ${error.message}`);}
 }
 
+
+
 function renderAttendanceLogs() {
-  const tbody = document.getElementById("attendanceLogsRows");
-  if (!tbody) return;
-  const list = organizations[currentOrgId]?.employees || [];
-  tbody.innerHTML = list.map(e => `
-    <tr>
-      <td><b>${e.name} (${e.id})</b></td>
-      <td>Main Facility Perimeter</td>
-      <td>${e.login || '08:45'}</td>
-      <td>${e.logout || '—'}</td>
-      <td><b style="color:var(--blue)">${typeof e.attendedDays === 'number' ? e.attendedDays : 24} / ${e.totalDays || 26} Days</b></td>
-      <td><span class="status ${e.status.toLowerCase()}">${e.status}</span></td>
-    </tr>
-  `).join("");
+  const tbody=document.getElementById("attendanceLogsRows");
+  if(tbody){
+    const org=organizations[currentOrgId], employees=org?.employees||[], logs=org?.attendanceLogs||[];
+    tbody.innerHTML=employees.map(e=>{
+      const own=logs.filter(x=>String(x.employee_id||x.empId||"")===String(e.id));
+      const ins=own.filter(x=>x.action==="in").sort((a,b)=>String(a.timestamp).localeCompare(String(b.timestamp)));
+      const outs=own.filter(x=>x.action==="out").sort((a,b)=>String(a.timestamp).localeCompare(String(b.timestamp)));
+      const fmt=x=>x?.timestamp?new Date(x.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";
+      return `<tr><td><b>${escapeHtml(e.name)} (${escapeHtml(e.id)})</b></td><td>Server recorded</td><td>${fmt(ins[ins.length-1])}</td><td>${fmt(outs[outs.length-1])}</td><td><b>${Number(e.attendedDays||0)} / ${Number(e.totalDays||26)} Days</b></td><td>${own.length?(own[own.length-1].action==="in"?"Present":"Checked Out"):"No punch"}</td></tr>`;
+    }).join("");
+  }
+  renderAdminLeaveQueue();
+}
+
+function renderAdminLeaveQueue(){
+  const tbody=document.getElementById("adminLeaveQueueRows");if(!tbody)return;
+  const leaves=organizations[currentOrgId]?.leaveRequests||[];
+  if(!leaves.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted)">No leave requests found.</td></tr>';return;}
+  tbody.innerHTML=leaves.map(l=>`<tr><td><b>${escapeHtml(l.empName||l.empId||"Employee")}</b><br><small>${escapeHtml(l.empId||"")}</small></td><td>${escapeHtml(l.type||"Leave")}<br><small>${escapeHtml(l.start||"")} to ${escapeHtml(l.end||"")}</small></td><td>${Number(l.days||0)}</td><td>${escapeHtml(l.reason||"")}</td><td>${escapeHtml(l.status||"Pending")}</td><td>${l.status==="Pending"?`<button class="action action-primary" onclick="decideLeave('${escapeJsString(l.id)}','Approved')">Approve</button> <button class="action action-danger" onclick="decideLeave('${escapeJsString(l.id)}','Rejected')">Reject</button>`:`<small>${escapeHtml(l.adminRemarks||"Decided")}</small>`}</td></tr>`).join("");
+}
+
+async function decideLeave(id,status){
+  const org=organizations[currentOrgId], leave=(org.leaveRequests||[]).find(x=>x.id===id);if(!leave)return;
+  const remarks=prompt(`Optional remarks for ${status.toLowerCase()} leave request:`)||"";
+  try{
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/leave-requests/${encodeURIComponent(id)}/decision`,{method:"POST",body:JSON.stringify({status,remarks})});
+    Object.assign(leave,saved);renderAdminLeaveQueue();showToast(`Leave request ${status.toLowerCase()}.`);
+  }catch(error){showToast(`Leave decision failed: ${error.message}`);}
 }
 
 function renderShiftsRoster() {
@@ -3870,10 +3849,27 @@ function renderPayslips() {
         <td><b style="color:var(--blue)">${attended} / ${e.totalDays || 26} Days</b></td>
         <td>₹ ${e.basePay.toLocaleString('en-IN')}</td>
         <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
-        <td><button class="action action-primary" onclick="viewDetailedPayslip('${e.id}')">View Voucher</button></td>
+        <td><button class="action action-primary" onclick="issuePayslip('${e.id}')">Issue Payslip</button> <button class="action" onclick="viewDetailedPayslip('${e.id}')">View Voucher</button></td>
       </tr>
     `;
   }).join("");
+}
+
+async function issuePayslip(empId){
+  const org=organizations[currentOrgId], emp=(org.employees||[]).find(x=>x.id===empId);if(!emp)return;
+  const period=new Date().toISOString().slice(0,7);
+  const existing=(org.payslips||[]).find(x=>x.employee_id===empId&&x.period===period);
+  if(existing)return showToast("A payslip has already been issued for this employee and period.");
+  const calc=calculateAttendanceSalary(emp);
+  const record={id:`PAY-${empId}-${period}`,employee_id:empId,empId,empName:emp.name,period,
+    basePay:Number(emp.basePay||0),attendedDays:Number(emp.attendedDays||0),totalDays:Number(emp.totalDays||26),
+    overtime:Number(emp.otPay||0),deductions:Number(emp.deductions||0),netSalary:Number(calc.netSalary||0),
+    status:"Issued",issuedAt:new Date().toISOString(),issuedBy:authenticatedUser?.username||"admin"};
+  try{
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/payslips`,{method:"POST",body:JSON.stringify({external_id:record.id,payload:record})});
+    org.payslips=org.payslips||[];org.payslips.unshift(saved);renderPayslips();
+    showToast(`Payslip for ${emp.name} issued and saved.`);
+  }catch(error){showToast(`Payslip was not issued: ${error.message}`);}
 }
 
 function viewDetailedPayslip(empId) {
@@ -4004,37 +4000,17 @@ function openReviewResignationModal(resignId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveResignationDecision(resignId, decisionStatus) {
-  const org = organizations[currentOrgId];
-  const r = (org.resignations || []).find(x => x.id === resignId);
-  if (!r) return;
-
-  const officialLwd = document.getElementById("resignOfficialLwdInput")?.value || r.proposedLwd;
-  const remarks = (document.getElementById("resignAdminRemarksInput")?.value || "").trim();
-
-  if (!remarks) {
-    showToast("Please enter a confirmation message for the employee!");
-    return;
-  }
-
-  r.status = decisionStatus;
-  r.officialLwd = officialLwd;
-  r.adminRemarks = remarks;
-
-  if (!org.chats) org.chats = {};
-  if (!org.chats[r.empId]) org.chats[r.empId] = [];
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[r.empId].push({
-    sender: "admin",
-    text: `📝 [RESIGNATION ${decisionStatus.toUpperCase()} — Ref ${r.id}]: Official LWD: ${officialLwd}. Message: "${remarks}"`,
-    time: timeStr
-  });
-
-  closeUniversalModal();
-  renderAdminResignationsQueue();
-  renderAdminChatView();
-  showToast(`Resignation ${r.id} marked as "${decisionStatus}" & message sent to ${r.empName}!`);
+async function saveResignationDecision(resignId, decisionStatus) {
+  const org=organizations[currentOrgId],record=(org.resignations||[]).find(x=>x.id===resignId);if(!record)return;
+  const officialLwd=document.getElementById("resignOfficialLwdInput")?.value||record.proposedLwd;
+  const remarks=(document.getElementById("resignAdminRemarksInput")?.value||"").trim();
+  if(!remarks)return showToast("Enter a confirmation message.");
+  const updated={...record,status:decisionStatus,officialLwd,adminRemarks:remarks};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/resignations/${encodeURIComponent(resignId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(record,saved);await persistEmployeeMessage(record.empId,`Resignation ${decisionStatus}. Official last working day: ${officialLwd}. ${remarks}`,"admin");closeUniversalModal();renderAdminResignationsQueue();renderAdminChatView();showToast("Resignation decision saved and employee notified.");}
+  catch(error){showToast(`Resignation decision failed: ${error.message}`);}
 }
+
+
 
 function renderAdminChatView() {
   const org = organizations[currentOrgId];
@@ -4079,20 +4055,14 @@ function selectAdminChatEmployee(empId) {
   renderAdminChatView();
 }
 
-function sendAdminToEmpMessage() {
-  const inp = document.getElementById("adminToEmpChatInput");
-  const txt = inp.value.trim();
-  if (!txt) return;
-
-  const org = organizations[currentOrgId];
-  if (!org.chats) org.chats = {};
-  if (!org.chats[adminActiveChatEmpId]) org.chats[adminActiveChatEmpId] = [];
-
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[adminActiveChatEmpId].push({ sender: "admin", text: txt, time: timeStr });
-  inp.value = "";
-  renderAdminChatView();
+async function sendAdminToEmpMessage() {
+  const inp=document.getElementById("adminToEmpChatInput"),txt=(inp?.value||"").trim();
+  if(!txt)return;
+  try{await persistEmployeeMessage(adminActiveChatEmpId,txt,"admin");if(inp)inp.value="";renderAdminChatView();}
+  catch(error){showToast(`Message was not sent: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    EMPLOYEE ALL ACCESS VIEWS & PUNCH
@@ -4140,6 +4110,7 @@ function renderEmployeeAllViews() {
   const netPayVal = document.getElementById("essNetPayValue");
   if (netPayVal) netPayVal.textContent = `₹ ${calc.netSalary.toLocaleString('en-IN')}`;
 
+  renderEmployeeNotifications();
   renderEmployeeTasksView();
   renderEmployeeShiftRoster();
   renderEmployeeLeaveHistory();
@@ -4147,6 +4118,19 @@ function renderEmployeeAllViews() {
   renderEmployeeTicketsView();
   renderEmployeeRecentTicketsWidget();
   renderEmployeeResignationStatus();
+}
+
+function renderEmployeeNotifications(){
+  const box=document.getElementById("employeeNotificationsList");if(!box)return;
+  const items=organizations[currentOrgId]?.notifications||[];
+  if(!items.length){box.innerHTML='<div style="color:var(--muted);font-size:12px">No notifications yet.</div>';return;}
+  box.innerHTML=items.slice().sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||""))).map(n=>`<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff"><b>${escapeHtml(n.title||"Notification")}</b><div style="font-size:12px;margin-top:3px">${escapeHtml(n.message||"")}</div><small style="color:var(--muted)">${escapeHtml(n.createdAt||"")}</small> ${n.read?"<span class='status present'>Read</span>":`<button class="action" onclick="markNotificationRead('${escapeJsString(n.id)}')">Mark read</button>`}</div>`).join("");
+}
+
+async function markNotificationRead(id){
+  const org=organizations[currentOrgId];
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/notifications/${encodeURIComponent(id)}/read`,{method:"POST"});const item=(org.notifications||[]).find(n=>n.id===id);if(item)Object.assign(item,saved);renderEmployeeNotifications();}
+  catch(error){showToast(`Could not update notification: ${error.message}`);}
 }
 
 function renderEmployeeResignationStatus() {
@@ -4175,29 +4159,43 @@ function renderEmployeeResignationStatus() {
   `;
 }
 
-function toggleEmployeePunch() {
+async function toggleEmployeePunch() {
   const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const btn = document.getElementById("btnEmpPunchToggle");
-  const badge = document.getElementById("empLivePunchBadge");
-  const overviewBadge = document.getElementById("empOverviewDutyBadge");
+  const emp = (org.employees || []).find(e => e.id === currentEmployeeId);
+  if (!emp) return showToast("Employee profile is not available.");
 
-  if (emp.status === "Present") {
-    emp.status = "Logged Out";
-    if (btn) btn.textContent = "Checked Out (Click to Check In)";
-    if (badge) { badge.textContent = "Checked Out"; badge.className = "status absent"; }
-    if (overviewBadge) { overviewBadge.textContent = "Checked Out"; overviewBadge.className = "status absent"; }
-    showToast("Punched out for shift!");
-  } else {
-    emp.status = "Present";
-    emp.attendedDays = (emp.attendedDays || 23) + 1;
-    if (btn) btn.textContent = "Punched In (Click to Check Out)";
-    if (badge) { badge.textContent = "Present · On Shift"; badge.className = "status present"; }
-    if (overviewBadge) { overviewBadge.textContent = "Active On Duty"; overviewBadge.className = "status present"; }
-    showToast("Punched in successfully! Attendance day recorded.");
+  const logs = (org.attendanceLogs || []).filter(x =>
+    String(x.employee_id || x.empId || "") === String(currentEmployeeId)
+  ).sort((a, b) => String(a.timestamp || "").localeCompare(String(b.timestamp || "")));
+  const latest = logs[logs.length - 1];
+  const action = latest?.action === "in" ? "out" : "in";
+
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/attendance/punch`, {
+      method: "POST",
+      body: JSON.stringify({ action })
+    });
+    org.attendanceLogs = org.attendanceLogs || [];
+    org.attendanceLogs.unshift(saved);
+    if (Number.isFinite(Number(saved.attendedDays))) emp.attendedDays = Number(saved.attendedDays);
+    emp.status = action === "in" ? "Present" : "Logged Out";
+    const btn = document.getElementById("btnEmpPunchToggle");
+    const badge = document.getElementById("empLivePunchBadge");
+    const overviewBadge = document.getElementById("empOverviewDutyBadge");
+    if (btn) btn.textContent = action === "in" ? "Punched In (Click to Check Out)" : "Checked Out (Click to Check In)";
+    if (badge) {
+      badge.textContent = action === "in" ? "Present · On Shift" : "Checked Out";
+      badge.className = action === "in" ? "status present" : "status absent";
+    }
+    if (overviewBadge) {
+      overviewBadge.textContent = action === "in" ? "Active On Duty" : "Checked Out";
+      overviewBadge.className = action === "in" ? "status present" : "status absent";
+    }
+    renderEmployeeAllViews();
+    showToast(action === "in" ? "Attendance check-in saved." : "Attendance check-out saved.");
+  } catch (error) {
+    showToast(`Attendance was not saved: ${error.message}`);
   }
-
-  renderEmployeeAllViews();
 }
 
 function renderEmployeeShiftRoster() {
@@ -4246,31 +4244,35 @@ function calculateLeaveDays() {
   }
 }
 
-function submitEmployeeLeaveApplication() {
+async function submitEmployeeLeaveApplication() {
   const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
+  const emp = (org.employees || []).find(e => e.id === currentEmployeeId);
+  if (!emp) return showToast("Employee profile is not available.");
   const type = document.getElementById("leaveFormType")?.value || "Casual Leave";
-  const start = document.getElementById("leaveFormStart")?.value || "2026-11-20";
-  const end = document.getElementById("leaveFormEnd")?.value || "2026-11-21";
+  const start = document.getElementById("leaveFormStart")?.value || "";
+  const end = document.getElementById("leaveFormEnd")?.value || "";
   const reason = (document.getElementById("leaveFormReason")?.value || "").trim();
-
+  if (!start || !end || end < start) return showToast("Enter a valid leave date range.");
   if (!reason) return showToast("Please provide leave reason!");
 
-  if (!org.leaveRequests) org.leaveRequests = [];
-  org.leaveRequests.unshift({
-    id: `LR-${Math.floor(100 + Math.random() * 900)}`,
-    empId: emp.id,
-    empName: emp.name,
-    type: type,
-    start: start,
-    end: end,
-    days: 2,
-    reason: reason,
-    status: "Approved"
-  });
-
-  renderEmployeeLeaveHistory();
-  showToast("Leave request submitted and recorded!");
+  const request = {
+    id: `LR-${Date.now()}`, empId: emp.id, employee_id: emp.id,
+    empName: emp.name, type, start, end,
+    days: Math.max(1, Math.round((new Date(end) - new Date(start)) / 86400000) + 1),
+    reason, status: "Pending"
+  };
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/leaveRequests`, {
+      method: "POST",
+      body: JSON.stringify({ external_id: request.id, payload: request })
+    });
+    org.leaveRequests = org.leaveRequests || [];
+    org.leaveRequests.unshift(saved);
+    renderEmployeeLeaveHistory();
+    showToast("Leave request submitted for administrator approval.");
+  } catch (error) {
+    showToast(`Leave request was not saved: ${error.message}`);
+  }
 }
 
 function renderEmployeePayslipsView() {
@@ -4281,16 +4283,10 @@ function renderEmployeePayslipsView() {
   const calc = calculateAttendanceSalary(emp);
   const attended = typeof emp.attendedDays === 'number' ? emp.attendedDays : 24;
 
-  tbody.innerHTML = `
-    <tr>
-      <td><b>October 2026</b></td>
-      <td><b style="color:var(--blue)">${attended} / ${emp.totalDays || 26} Days</b></td>
-      <td>₹ ${emp.basePay.toLocaleString('en-IN')}</td>
-      <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
-      <td><span class="status present">Paid</span></td>
-      <td><button class="action action-primary" onclick="viewDetailedPayslip('${emp.id}')">View & Print Sheet</button></td>
-    </tr>
-  `;
+  const issued=(org.payslips||[]).filter(p=>String(p.employee_id||p.empId)===String(emp.id));
+  tbody.innerHTML = issued.length ? issued.map(p=>`
+    <tr><td><b>${escapeHtml(p.period||"")}</b></td><td>${Number(p.attendedDays||0)} / ${Number(p.totalDays||26)} Days</td><td>₹ ${Number(p.basePay||0).toLocaleString('en-IN')}</td><td><b style="color:var(--green)">₹ ${Number(p.netSalary||0).toLocaleString('en-IN')}</b></td><td><span class="status present">${escapeHtml(p.status||"Issued")}</span></td><td><button class="action action-primary" onclick="viewDetailedPayslip('${emp.id}')">View & Print Sheet</button></td></tr>
+  `).join("") : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No payslip has been issued yet. Contact your administrator.</td></tr>';
 
   const inlineBox = document.getElementById("empInlinePayslipContainer");
   if (inlineBox) {
@@ -4315,33 +4311,16 @@ function renderEmployeePayslipsView() {
   }
 }
 
-function submitEmployeeResignationNotice() {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const reason = document.getElementById("empResignReasonSelect")?.value || "Personal Reasons";
-  const lwd = document.getElementById("empResignProposedLwd")?.value || "2026-12-11";
-  const letter = (document.getElementById("empResignLetterText")?.value || "").trim();
-
-  if (!letter) return showToast("Please write formal resignation letter!");
-
-  if (!org.resignations) org.resignations = [];
-  org.resignations.unshift({
-    id: `RSG-${Math.floor(100 + Math.random() * 900)}`,
-    empId: emp.id,
-    empName: emp.name,
-    dept: emp.dept,
-    submittedDate: new Date().toISOString().split('T')[0],
-    noticeDays: 30,
-    proposedLwd: lwd,
-    officialLwd: lwd,
-    reason: reason,
-    letter: letter,
-    status: "Pending Review",
-    adminRemarks: ""
-  });
-
-  renderEmployeeResignationStatus();
-  showToast("Resignation notice submitted!");
+async function submitEmployeeResignationNotice() {
+  const org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===currentEmployeeId);
+  if(!emp)return;
+  const reason=document.getElementById("empResignReasonSelect")?.value||"Personal Reasons";
+  const lwd=document.getElementById("empResignProposedLwd")?.value||"";
+  const letter=(document.getElementById("empResignLetterText")?.value||"").trim();
+  if(!letter||!lwd)return showToast("Provide the proposed last working day and resignation letter.");
+  const id=`RSG-${Date.now()}`,record={id,empId:emp.id,employee_id:emp.id,empName:emp.name,dept:emp.dept,submittedDate:new Date().toISOString().slice(0,10),noticeDays:30,proposedLwd:lwd,officialLwd:lwd,reason,letter,status:"Pending Review",adminRemarks:""};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/resignations`,{method:"POST",body:JSON.stringify({external_id:id,payload:record})});org.resignations=org.resignations||[];org.resignations.unshift(saved);renderEmployeeResignationStatus();showToast("Resignation notice submitted to your administrator.");}
+  catch(error){showToast(`Resignation was not submitted: ${error.message}`);}
 }
 
 function renderEmpAdminChatView() {
@@ -4368,21 +4347,23 @@ function renderEmpAdminChatView() {
   box.scrollTop = box.scrollHeight;
 }
 
-function sendEmpDirectMessage() {
-  const inp = document.getElementById("empChatInput");
-  const txt = inp.value.trim();
-  if (!txt) return;
-
-  const org = organizations[currentOrgId];
-  if (!org.chats) org.chats = {};
-  if (!org.chats[currentEmployeeId]) org.chats[currentEmployeeId] = [];
-
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[currentEmployeeId].push({ sender: "emp", text: txt, time: timeStr });
-  inp.value = "";
-  renderEmpAdminChatView();
-  showToast("Message sent to Sector Admin!");
+async function sendEmpDirectMessage() {
+  const inp=document.getElementById("empChatInput"),txt=(inp?.value||"").trim();
+  if(!txt)return;
+  try{await persistEmployeeMessage(currentEmployeeId,txt,"emp");if(inp)inp.value="";renderEmpAdminChatView();showToast("Message saved and sent to your administrator.");}
+  catch(error){showToast(`Message was not sent: ${error.message}`);}
 }
+
+async function persistEmployeeMessage(employeeId,text,sender){
+  const org=organizations[currentOrgId], id=`MSG-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  const msg={id,employee_id:employeeId,empId:employeeId,sender,text,time:new Date().toISOString()};
+  const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/messages`,{method:"POST",body:JSON.stringify({external_id:id,payload:msg})});
+  org.messages=org.messages||[];org.messages.push(saved);
+  org.chats=org.chats||{};org.chats[employeeId]=org.chats[employeeId]||[];org.chats[employeeId].push(saved);
+  return saved;
+}
+
+
 
 function startLiveClock() {
   setInterval(() => {
@@ -4596,49 +4577,18 @@ function openEscalateBotModal(defaultSubject) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function submitBotEscalationTicket() {
-  const subj = (document.getElementById("botEscalateSubject")?.value || "").trim();
-  const details = (document.getElementById("botEscalateDetails")?.value || "").trim() || "Unresolved operational issue.";
-
-  if (!subj) {
-    showToast("Please enter a ticket subject");
-    return;
-  }
-
-  const isEmp = currentUserRole === "employee";
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const raisedBy = isEmp ? `${emp.name} (Staff ${emp.id})` : `${org.adminUser} (${org.orgId})`;
-  const submitterId = isEmp ? emp.id : org.adminUser;
-
-  const newTicket = {
-    id: `QRY-${Math.floor(Math.random() * 8999 + 1000)}`,
-    orgId: currentOrgId,
-    sector: org.sector,
-    submitter: raisedBy,
-    submitterId: submitterId,
-    role: currentUserRole,
-    target: "Super Admin",
-    subject: subj,
-    details: details,
-    priority: "High",
-    status: "Open",
-    adminNotes: "Dispatched automatically via AI Assistant desk.",
-    response: "",
-    resolvedBy: ""
-  };
-
-  supportQueries.unshift(newTicket);
-  closeUniversalModal();
-
-  botChatHistory.push({
-    sender: "bot",
-    text: `✅ **Ticket Dispatched!**\nTicket **#${newTicket.id}** lodged directly into the **Super Admin Control Center** under **💬 Support & Escalations**.`,
-    canEscalate: false
-  });
-  renderBotMessages();
-  showToast(`Ticket #${newTicket.id} dispatched to Super Admin!`);
+async function submitBotEscalationTicket() {
+  const subject=(document.getElementById("botEscalateSubject")?.value||"").trim();
+  const details=(document.getElementById("botEscalateDetails")?.value||"").trim();
+  if(!subject||!details)return showToast("Enter ticket subject and incident details.");
+  const isEmp=currentUserRole==="employee",org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===currentEmployeeId);
+  const id=`QRY-${Date.now()}`,submitterId=isEmp?emp?.id:(authenticatedUser?.username||"admin");
+  const ticket={id,orgId:org.orgId,sector:org.sector,submitter:isEmp?`${emp?.name} (Staff ${emp?.id})`:`Admin (${org.orgId})`,submitterId,employee_id:isEmp?emp?.id:undefined,role:currentUserRole,target:"Super Admin",subject,details,priority:"High",status:"Open",adminNotes:"Escalated from assistant",response:"",resolvedBy:""};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/supportQueries`,{method:"POST",body:JSON.stringify({external_id:id,payload:ticket})});supportQueries.unshift(saved);org.supportQueries=org.supportQueries||[];org.supportQueries.unshift(saved);closeUniversalModal();botChatHistory.push({sender:"bot",text:`Ticket #${id} was saved for Super Admin review.`});renderBotMessages();showToast("Escalation ticket saved.");}
+  catch(error){showToast(`Escalation failed: ${error.message}`);}
 }
+
+
 
 function closeUniversalModal() {
   const modal = document.getElementById("universalModal");
@@ -4646,6 +4596,9 @@ function closeUniversalModal() {
 }
 
 function logout() {
+  sskattAccessToken = "";
+  authenticatedUser = null;
+  sessionStorage.removeItem("sskatt_access_token");
   document.getElementById("dashboard").classList.add("hidden");
   document.getElementById("landing").classList.remove("hidden");
   const aiWidget = document.getElementById("aiSupportWidget");

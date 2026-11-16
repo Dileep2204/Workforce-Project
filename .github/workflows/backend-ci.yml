@@ -1,0 +1,53 @@
+name: SSKATT full-stack checks
+
+on:
+  push:
+    branches: [main, feature/production-backend-postgres]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sskatt_test
+          POSTGRES_USER: sskatt
+          POSTGRES_PASSWORD: sskatt_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sskatt -d sskatt_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      JWT_SECRET: ci-only-secret-do-not-use-in-production
+      SUPERADMIN_PASSWORD: ci-only-password-do-not-use-in-production
+      DATABASE_URL: postgresql+psycopg://sskatt:sskatt_ci_password@localhost:5432/sskatt_test
+      ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile backend Python files
+        run: python -m compileall -q app migrations tests
+      - name: Run backend and frontend contract tests
+        run: python -m pytest -q
+      - name: Check embedded frontend JavaScript syntax
+        run: |
+          python -c "import re, pathlib; s=pathlib.Path('../index.html').read_text(encoding='utf-8'); scripts=re.findall(r'<script(?:\\s[^>]*)?>([\\s\\S]*?)</script>', s, re.I); pathlib.Path('/tmp/sskatt-inline.js').write_text(scripts[-1], encoding='utf-8')"
+          node --check /tmp/sskatt-inline.js

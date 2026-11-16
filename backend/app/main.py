@@ -1,0 +1,538 @@
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
+import re
+
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.database import Base, engine, get_db
+from app.deps import get_current_user, require_roles
+from app.models import AuditLog, Organization, ResourceRecord, User
+from app.schemas import AttendancePunchRequest, EmployeeProvisionRequest, LeaveDecisionRequest, LoginRequest, OrganizationCreate, OrganizationProvisionRequest, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
+from app.security import create_access_token, hash_password, verify_password
+
+RESOURCE_TYPES = {
+    "employees", "tasks", "shifts", "leaveRequests", "resignations", "chats",
+    "supportQueries", "deletionAudits", "attendanceLogs", "payslips",
+    "workloadRequests", "notifications", "messages"
+}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Local development convenience only. Production schema changes are applied by Alembic.
+    if settings.environment.lower() in {"development", "test"}:
+        Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+
+def org_for_user(db: Session, code: str, user: User) -> Organization:
+    org = db.scalar(select(Organization).where(Organization.code == code, Organization.is_active.is_(True)))
+    if not org:
+        raise HTTPException(404, "Organization not found")
+    if user.role != "superadmin" and user.organization_id != org.id:
+        raise HTTPException(403, "You cannot access another organization's data")
+    return org
+
+
+def audit(db: Session, user: User, org: Organization | None, action: str, kind: str | None = None, record_id: str | None = None):
+    db.add(AuditLog(
+        organization_id=org.id if org else None, actor_user_id=user.id,
+        action=action, resource_type=kind, record_id=record_id
+    ))
+
+
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    db.execute(select(1))
+    return {"status": "ok", "service": settings.app_name, "database": "connected"}
+
+
+@app.post(f"{settings.api_prefix}/auth/login")
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    stmt = select(User).where(User.username == body.username, User.is_active.is_(True))
+    candidates = list(db.scalars(stmt))
+    user = None
+    for candidate in candidates:
+        if candidate.role == "superadmin" and body.organization_code is None:
+            if verify_password(body.password, candidate.password_hash):
+                user = candidate
+                break
+        elif candidate.organization and body.organization_code and candidate.organization.code == body.organization_code.upper():
+            if verify_password(body.password, candidate.password_hash):
+                user = candidate
+                break
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid organization, username, or password")
+    org = db.get(Organization, user.organization_id) if user.organization_id else None
+    return {
+        "access_token": create_access_token(str(user.id), user.role),
+        "token_type": "bearer",
+        "expires_in": settings.access_token_minutes * 60,
+        "user": {
+            "id": str(user.id), "username": user.username, "full_name": user.full_name,
+            "role": user.role, "employee_id": user.employee_id,
+            "organization_code": org.code if org else None,
+            "organization_name": org.name if org else None,
+            "sector": org.sector if org else None,
+        },
+    }
+
+
+@app.get(f"{settings.api_prefix}/auth/me")
+def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    org = db.get(Organization, user.organization_id) if user.organization_id else None
+    return {
+        "id": str(user.id), "username": user.username, "full_name": user.full_name,
+        "role": user.role, "employee_id": user.employee_id,
+        "organization_code": org.code if org else None,
+        "organization_name": org.name if org else None,
+        "sector": org.sector if org else None,
+    }
+
+
+@app.get(f"{settings.api_prefix}/organizations")
+def list_organizations(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    stmt = select(Organization).where(Organization.is_active.is_(True))
+    if user.role != "superadmin":
+        stmt = stmt.where(Organization.id == user.organization_id)
+    return [{"code": o.code, "sector": o.sector, "name": o.name, "settings": o.settings} for o in db.scalars(stmt).all()]
+
+
+@app.post(f"{settings.api_prefix}/organizations/provision", status_code=201)
+def provision_organization(
+    body: OrganizationProvisionRequest, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("superadmin"))
+):
+    code = body.code.strip().upper()
+    username = body.admin_username.strip()
+    if not re.fullmatch(r"[A-Z0-9][A-Z0-9-]{1,39}", code):
+        raise HTTPException(422, "Organization code may contain only letters, numbers, and hyphens")
+    if db.scalar(select(Organization).where(Organization.code == code)):
+        raise HTTPException(409, "Organization code already exists")
+    org = Organization(code=code, sector=body.sector.strip(), name=body.name.strip(), settings=body.settings)
+    db.add(org)
+    db.flush()
+    admin = User(
+        organization_id=org.id, username=username, full_name=body.admin_full_name.strip(),
+        role="admin", password_hash=hash_password(body.admin_password)
+    )
+    db.add(admin)
+    audit(db, user, org, "organization.provisioned", "organizations", code)
+    db.commit()
+    return {"organization": {"code": org.code, "sector": org.sector, "name": org.name},
+            "admin": {"username": admin.username, "role": admin.role}}
+
+
+@app.post(f"{settings.api_prefix}/organizations", status_code=201)
+def create_organization(
+    body: OrganizationCreate, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("superadmin"))
+):
+    code = body.code.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9][A-Z0-9-]{1,39}", code):
+        raise HTTPException(422, "Organization code may contain only letters, numbers, and hyphens")
+    if db.scalar(select(Organization).where(Organization.code == code)):
+        raise HTTPException(409, "Organization code already exists")
+    org = Organization(code=code, sector=body.sector, name=body.name, settings=body.settings)
+    db.add(org)
+    db.flush()
+    audit(db, user, org, "organization.created")
+    db.commit()
+    return {"code": org.code, "sector": org.sector, "name": org.name}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/employees", status_code=201)
+def provision_employee(
+    code: str, body: EmployeeProvisionRequest, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    employee_id = body.employee_id.strip()
+    username = body.username.strip()
+    if str(body.employee.get("id") or "") != employee_id:
+        raise HTTPException(422, "Employee record ID must match employee_id")
+    if db.scalar(select(User).where(User.organization_id == org.id, User.username == username)):
+        raise HTTPException(409, "Username already exists in this organization")
+    if db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "employees",
+        ResourceRecord.external_id == employee_id
+    )):
+        raise HTTPException(409, "Employee ID already exists")
+    employee_payload = {**body.employee}
+    employee_payload.pop("password", None)
+    employee_payload["id"] = employee_id
+    employee_payload["employee_id"] = employee_id
+    new_user = User(
+        organization_id=org.id, username=username, full_name=body.full_name.strip(),
+        role="employee", employee_id=employee_id, password_hash=hash_password(body.password)
+    )
+    employee_record = ResourceRecord(
+        organization_id=org.id, resource_type="employees",
+        external_id=employee_id, payload=employee_payload
+    )
+    db.add_all([new_user, employee_record])
+    audit(db, user, org, "employee.provisioned", "employees", employee_id)
+    db.commit()
+    return {"employee": {"id": employee_id, **employee_payload},
+            "account": {"username": username, "role": "employee"}}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/users", status_code=201)
+def create_user(
+    code: str, body: UserCreate, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    org = org_for_user(db, code.upper(), user)
+    if body.role not in {"admin", "employee"}:
+        raise HTTPException(422, "Only admin or employee roles can be provisioned here")
+    if user.role == "admin" and body.role != "employee":
+        raise HTTPException(403, "Organization admins can create employee accounts only")
+    if user.role not in {"superadmin", "admin"}:
+        raise HTTPException(403, "Only administrators can create accounts")
+    existing = db.scalar(select(User).where(User.organization_id == org.id, User.username == body.username))
+    if existing:
+        raise HTTPException(409, "Username already exists in this organization")
+    new_user = User(
+        organization_id=org.id, username=body.username.strip(), full_name=body.full_name.strip(),
+        email=body.email, role=body.role, employee_id=body.employee_id,
+        password_hash=hash_password(body.password)
+    )
+    db.add(new_user)
+    audit(db, user, org, "user.created", "users", body.username)
+    db.commit()
+    return {"username": new_user.username, "role": new_user.role, "employee_id": new_user.employee_id}
+
+
+def assert_resource_access(org: Organization, resource_type: str, payload: dict, user: User, write: bool, external_id: str | None = None):
+    if user.role == "superadmin":
+        return
+    if user.organization_id != org.id:
+        raise HTTPException(403, "Cross-organization access denied")
+    if user.role == "admin":
+        return
+    owner = payload.get("employee_id") or payload.get("empId") or payload.get("submitterId")
+
+    if not write:
+        if resource_type == "employees":
+            record_owner = payload.get("employee_id") or payload.get("id") or external_id
+            if str(record_owner) != str(user.employee_id):
+                raise HTTPException(403, "You can only view your own employee record")
+            return
+        # Employee data is private by default. Tasks, shifts and other records must
+        # explicitly identify their owner; missing ownership is never treated as public.
+        if not owner or str(owner) != str(user.employee_id):
+            raise HTTPException(403, "You can only view your own records")
+        return
+
+    # Generic JSON resources cannot safely implement workflow state transitions.
+    # Employees may submit new leave requests and support tickets only. They cannot
+    # create attendance/payroll/message records or alter approvals through PATCH.
+    if resource_type not in {"leaveRequests", "supportQueries", "resignations", "workloadRequests"}:
+        raise HTTPException(403, "Employees cannot modify this resource")
+    if not owner or str(owner) != str(user.employee_id):
+        raise HTTPException(403, "Employee-owned record is required")
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/attendance/punch", status_code=201)
+def attendance_punch(
+    code: str, body: AttendancePunchRequest, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("employee"))
+):
+    org = org_for_user(db, code.upper(), user)
+    if not user.employee_id:
+        raise HTTPException(403, "Employee account is not linked to an employee ID")
+
+    rows = db.scalars(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "attendanceLogs"
+    )).all()
+    own_rows = [row for row in rows if str(row.payload.get("employee_id") or row.payload.get("empId") or "") == str(user.employee_id)]
+    last = max(own_rows, key=lambda row: row.created_at) if own_rows else None
+    last_action = (last.payload.get("action") or "").lower() if last else ""
+
+    if body.action == "in" and last_action == "in":
+        raise HTTPException(409, "You are already punched in")
+    if body.action == "out" and last_action != "in":
+        raise HTTPException(409, "You must punch in before punching out")
+
+    now = datetime.now(timezone.utc)
+    external_id = f"ATT-{uuid4().hex}"
+    payload = {
+        "employee_id": user.employee_id,
+        "empId": user.employee_id,
+        "action": body.action,
+        "timestamp": now.isoformat(),
+        "date": now.date().isoformat(),
+        "status": "Present" if body.action == "in" else "Checked Out",
+    }
+    row = ResourceRecord(
+        organization_id=org.id, resource_type="attendanceLogs",
+        external_id=external_id, payload=payload
+    )
+    db.add(row)
+    if body.action == "in":
+        attended_dates = {
+            str(item.payload.get("date"))
+            for item in own_rows
+            if item.payload.get("action") == "in" and item.payload.get("date")
+        }
+        attended_dates.add(now.date().isoformat())
+        employee_record = db.scalar(select(ResourceRecord).where(
+            ResourceRecord.organization_id == org.id,
+            ResourceRecord.resource_type == "employees",
+            ResourceRecord.external_id == user.employee_id
+        ))
+        if employee_record:
+            employee_record.payload = {**employee_record.payload, "attendedDays": len(attended_dates)}
+    audit(db, user, org, f"attendance.punch_{body.action}", "attendanceLogs", external_id)
+    db.commit()
+    return {"id": external_id, **payload, "attendedDays": len({
+        str(item.payload.get("date")) for item in own_rows
+        if item.payload.get("action") == "in" and item.payload.get("date")
+    } | ({now.date().isoformat()} if body.action == "in" else set()))}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/notifications/{{external_id}}/read")
+def mark_notification_read(
+    code: str, external_id: str, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("employee"))
+):
+    org = org_for_user(db, code.upper(), user)
+    row = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "notifications",
+        ResourceRecord.external_id == external_id
+    ))
+    if not row:
+        raise HTTPException(404, "Notification not found")
+    owner = row.payload.get("employee_id") or row.payload.get("empId")
+    if str(owner) != str(user.employee_id):
+        raise HTTPException(403, "You can only update your own notifications")
+    row.payload = {**row.payload, "read": True, "readAt": datetime.now(timezone.utc).isoformat()}
+    audit(db, user, org, "notification.read", "notifications", external_id)
+    db.commit()
+    return {"id": row.external_id, **row.payload}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/employees/{{employee_id}}/deactivate")
+def deactivate_employee(
+    code: str, employee_id: str, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    account = db.scalar(select(User).where(
+        User.organization_id == org.id, User.employee_id == employee_id, User.role == "employee"
+    ))
+    if not account:
+        raise HTTPException(404, "Employee account not found")
+    account.is_active = False
+    record = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "employees",
+        ResourceRecord.external_id == employee_id
+    ))
+    if record:
+        record.payload = {**record.payload, "status": "Inactive"}
+    audit(db, user, org, "employee.deactivated", "employees", employee_id)
+    db.commit()
+    return {"employee_id": employee_id, "active": False}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/leave-requests/{{external_id}}/decision")
+def decide_leave_request(
+    code: str, external_id: str, body: LeaveDecisionRequest,
+    db: Session = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    row = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "leaveRequests",
+        ResourceRecord.external_id == external_id
+    ))
+    if not row:
+        raise HTTPException(404, "Leave request not found")
+    if row.payload.get("status") != "Pending":
+        raise HTTPException(409, "Only pending leave requests can be decided")
+    row.payload = {**row.payload, "status": body.status, "adminRemarks": body.remarks,
+                   "decidedAt": datetime.now(timezone.utc).isoformat(),
+                   "decidedBy": user.username}
+    employee_id = row.payload.get("employee_id") or row.payload.get("empId")
+    notification_id = f"NTF-{uuid4().hex}"
+    notification_payload = {
+        "id": notification_id, "employee_id": employee_id, "empId": employee_id,
+        "title": f"Leave request {body.status.lower()}",
+        "message": body.remarks or f"Your leave request {external_id} was {body.status.lower()}.",
+        "type": "leave", "createdAt": datetime.now(timezone.utc).isoformat(), "read": False
+    }
+    db.add(ResourceRecord(organization_id=org.id, resource_type="notifications",
+                          external_id=notification_id, payload=notification_payload))
+    audit(db, user, org, f"leave.{body.status.lower()}", "leaveRequests", external_id)
+    db.commit()
+    return {"id": row.external_id, **row.payload}
+
+
+@app.get(f"{settings.api_prefix}/organizations/{{code}}/resources/{{resource_type}}")
+def list_resources(
+    code: str, resource_type: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if resource_type not in RESOURCE_TYPES:
+        raise HTTPException(404, "Unknown resource type")
+    org = org_for_user(db, code.upper(), user)
+    rows = db.scalars(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id, ResourceRecord.resource_type == resource_type
+    )).all()
+    result = []
+    for row in rows:
+        try:
+            assert_resource_access(org, resource_type, row.payload, user, False, row.external_id)
+            result.append({"id": row.external_id, **row.payload})
+        except HTTPException:
+            continue
+    return result
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/resources/{{resource_type}}", status_code=201)
+def create_resource(
+    code: str, resource_type: str, body: ResourceCreate, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if resource_type not in RESOURCE_TYPES:
+        raise HTTPException(404, "Unknown resource type")
+    org = org_for_user(db, code.upper(), user)
+    if resource_type in {"employees", "attendanceLogs"}:
+        raise HTTPException(405, "Use the dedicated employee provisioning or attendance workflow endpoint")
+    assert_resource_access(org, resource_type, body.payload, user, True)
+    existing = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id, ResourceRecord.resource_type == resource_type,
+        ResourceRecord.external_id == body.external_id
+    ))
+    if existing:
+        raise HTTPException(409, "Record already exists")
+    row = ResourceRecord(organization_id=org.id, resource_type=resource_type, external_id=body.external_id, payload=body.payload)
+    db.add(row)
+    audit(db, user, org, f"{resource_type}.created", resource_type, body.external_id)
+    db.commit()
+    return {"id": row.external_id, **row.payload}
+
+
+@app.patch(f"{settings.api_prefix}/organizations/{{code}}/resources/{{resource_type}}/{{external_id}}")
+def update_resource(
+    code: str, resource_type: str, external_id: str, body: ResourceUpdate,
+    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    if resource_type not in RESOURCE_TYPES:
+        raise HTTPException(404, "Unknown resource type")
+    org = org_for_user(db, code.upper(), user)
+    row = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id, ResourceRecord.resource_type == resource_type,
+        ResourceRecord.external_id == external_id
+    ))
+    if not row:
+        raise HTTPException(404, "Record not found")
+    if user.role == "employee":
+        raise HTTPException(403, "Employees cannot update workflow records; submit a new request or ticket")
+    if resource_type == "employees" and "password" in body.payload:
+        raise HTTPException(422, "Plaintext passwords must never be stored in employee profile records")
+    assert_resource_access(org, resource_type, row.payload, user, True)
+    assert_resource_access(org, resource_type, body.payload, user, True)
+    row.payload = body.payload
+    audit(db, user, org, f"{resource_type}.updated", resource_type, external_id)
+    db.commit()
+    return {"id": row.external_id, **row.payload}
+
+
+@app.delete(f"{settings.api_prefix}/organizations/{{code}}/resources/{{resource_type}}/{{external_id}}", status_code=204)
+def delete_resource(
+    code: str, resource_type: str, external_id: str, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "superadmin"))
+):
+    if resource_type not in RESOURCE_TYPES:
+        raise HTTPException(404, "Unknown resource type")
+    org = org_for_user(db, code.upper(), user)
+    row = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id, ResourceRecord.resource_type == resource_type,
+        ResourceRecord.external_id == external_id
+    ))
+    if not row:
+        raise HTTPException(404, "Record not found")
+    db.delete(row)
+    audit(db, user, org, f"{resource_type}.deleted", resource_type, external_id)
+    db.commit()
+    return None
+
+
+@app.get(f"{settings.api_prefix}/organizations/{{code}}/snapshot")
+def get_snapshot(
+    code: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    org = org_for_user(db, code.upper(), user)
+    rows = db.scalars(select(ResourceRecord).where(ResourceRecord.organization_id == org.id)).all()
+    result = {kind: [] for kind in RESOURCE_TYPES}
+    for row in rows:
+        try:
+            assert_resource_access(org, row.resource_type, row.payload, user, False, row.external_id)
+            result[row.resource_type].append({"id": row.external_id, **row.payload})
+        except HTTPException:
+            continue
+    return {"organization": {"code": org.code, "sector": org.sector, "name": org.name, "settings": org.settings}, "resources": result}
+
+
+@app.put(f"{settings.api_prefix}/organizations/{{code}}/snapshot")
+def replace_snapshot(
+    code: str, body: SnapshotUpdate, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    # Full snapshot replacement is intentionally disabled: a partial or stale
+    # client snapshot could silently erase payroll, attendance or leave history.
+    raise HTTPException(
+        status_code=410,
+        detail="Bulk snapshot replacement is disabled. Use individual resource endpoints to preserve existing records."
+    )
+    unknown = set(body.resources) - RESOURCE_TYPES
+    if unknown:
+        raise HTTPException(422, f"Unsupported resource types: {', '.join(sorted(unknown))}")
+    db.query(ResourceRecord).filter(ResourceRecord.organization_id == org.id).delete()
+    for kind, records in body.resources.items():
+        for item in records:
+            external_id = str(item.get("id") or item.get("external_id") or "")
+            if not external_id:
+                raise HTTPException(422, f"Each {kind} record requires an id")
+            payload = {k: v for k, v in item.items() if k not in {"id", "external_id"}}
+            db.add(ResourceRecord(organization_id=org.id, resource_type=kind, external_id=external_id, payload=payload))
+    audit(db, user, org, "snapshot.replaced")
+    db.commit()
+    return {"saved": True, "resource_types": len(body.resources)}
+
+
+@app.get(f"{settings.api_prefix}/audit")
+def list_audit(
+    limit: int = 100, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "superadmin"))
+):
+    stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(min(max(limit, 1), 500))
+    if user.role != "superadmin":
+        stmt = stmt.where(AuditLog.organization_id == user.organization_id)
+    return [{
+        "action": row.action, "resource_type": row.resource_type, "record_id": row.record_id,
+        "details": row.details, "created_at": row.created_at.isoformat()
+    } for row in db.scalars(stmt).all()]

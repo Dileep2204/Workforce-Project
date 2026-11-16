@@ -1,0 +1,17 @@
+# Secrets and environment files
+.env
+backend/.env
+!.env.example
+!backend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+
+# Local databases and logs
+*.sqlite3
+*.log
