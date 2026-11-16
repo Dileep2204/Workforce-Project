@@ -52,3 +52,13 @@ from typing import Literal
 
 class AttendancePunchRequest(BaseModel):
     action: Literal["in", "out"]
+
+from typing import Literal
+from pydantic import BaseModel, Field
+
+class EmployeeProvisionRequest(BaseModel):
+    username: str = Field(min_length=2, max_length=120)
+    password: str = Field(min_length=12, max_length=256)
+    full_name: str = Field(min_length=2, max_length=200)
+    employee_id: str = Field(min_length=1, max_length=80)
+    employee: dict
