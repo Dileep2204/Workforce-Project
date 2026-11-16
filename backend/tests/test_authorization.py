@@ -45,12 +45,16 @@ def test_employee_can_submit_own_leave_request():
 
 @pytest.mark.parametrize("resource_type", [
     "employees", "tasks", "shifts", "attendanceLogs", "payslips",
-    "notifications", "messages", "chats", "supportQueries"
+    "notifications", "messages", "chats"
 ])
 def test_employee_cannot_create_privileged_or_general_records(resource_type):
     with pytest.raises(HTTPException) as error:
         assert_resource_access(org, resource_type, {"employee_id": "EMP-001"}, employee, True)
     assert error.value.status_code == 403
+
+
+def test_employee_can_submit_own_support_ticket():
+    assert_resource_access(org, "supportQueries", {"submitterId": "EMP-001"}, employee, True)
 
 
 def test_employee_cannot_read_other_tenant_even_if_called_directly():
