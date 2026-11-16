@@ -1302,8 +1302,9 @@ button, input, select, textarea { font: inherit; }
       </section>
 
       <section id="view-attendance" class="view-section hidden">
-        <div class="dash-head"><div><h1>Attendance Logs & Attendance Days</h1><div class="sub">Biometric logs and duty records</div></div></div>
+        <div class="dash-head"><div><h1>Attendance Logs & Attendance Days</h1><div class="sub">Server-recorded biometric/check-in logs and duty records</div></div></div>
         <div class="panel"><div class="table-wrap"><table class="table"><thead><tr><th>EMPLOYEE</th><th>VERIFIED LOCATION</th><th>CLOCK IN</th><th>CLOCK OUT</th><th>TOTAL ATTENDED DAYS</th><th>STATUS</th></tr></thead><tbody id="attendanceLogsRows"></tbody></table></div></div>
+        <div class="panel" style="margin-top:18px"><h3>Leave requests awaiting approval</h3><div class="table-wrap"><table class="table"><thead><tr><th>EMPLOYEE</th><th>TYPE / DATES</th><th>DAYS</th><th>REASON</th><th>STATUS</th><th>DECISION</th></tr></thead><tbody id="adminLeaveQueueRows"></tbody></table></div></div>
       </section>
 
       <!-- Shifts & Roster Management -->
@@ -3851,19 +3852,34 @@ async function saveProvisionedSector() {
 }
 
 function renderAttendanceLogs() {
-  const tbody = document.getElementById("attendanceLogsRows");
-  if (!tbody) return;
-  const list = organizations[currentOrgId]?.employees || [];
-  tbody.innerHTML = list.map(e => `
-    <tr>
-      <td><b>${e.name} (${e.id})</b></td>
-      <td>Main Facility Perimeter</td>
-      <td>${e.login || '08:45'}</td>
-      <td>${e.logout || '—'}</td>
-      <td><b style="color:var(--blue)">${typeof e.attendedDays === 'number' ? e.attendedDays : 24} / ${e.totalDays || 26} Days</b></td>
-      <td><span class="status ${e.status.toLowerCase()}">${e.status}</span></td>
-    </tr>
-  `).join("");
+  const tbody=document.getElementById("attendanceLogsRows");
+  if(tbody){
+    const org=organizations[currentOrgId], employees=org?.employees||[], logs=org?.attendanceLogs||[];
+    tbody.innerHTML=employees.map(e=>{
+      const own=logs.filter(x=>String(x.employee_id||x.empId||"")===String(e.id));
+      const ins=own.filter(x=>x.action==="in").sort((a,b)=>String(a.timestamp).localeCompare(String(b.timestamp)));
+      const outs=own.filter(x=>x.action==="out").sort((a,b)=>String(a.timestamp).localeCompare(String(b.timestamp)));
+      const fmt=x=>x?.timestamp?new Date(x.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";
+      return `<tr><td><b>${escapeHtml(e.name)} (${escapeHtml(e.id)})</b></td><td>Server recorded</td><td>${fmt(ins[ins.length-1])}</td><td>${fmt(outs[outs.length-1])}</td><td><b>${Number(e.attendedDays||0)} / ${Number(e.totalDays||26)} Days</b></td><td>${own.length?(own[own.length-1].action==="in"?"Present":"Checked Out"):"No punch"}</td></tr>`;
+    }).join("");
+  }
+  renderAdminLeaveQueue();
+}
+
+function renderAdminLeaveQueue(){
+  const tbody=document.getElementById("adminLeaveQueueRows");if(!tbody)return;
+  const leaves=organizations[currentOrgId]?.leaveRequests||[];
+  if(!leaves.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted)">No leave requests found.</td></tr>';return;}
+  tbody.innerHTML=leaves.map(l=>`<tr><td><b>${escapeHtml(l.empName||l.empId||"Employee")}</b><br><small>${escapeHtml(l.empId||"")}</small></td><td>${escapeHtml(l.type||"Leave")}<br><small>${escapeHtml(l.start||"")} to ${escapeHtml(l.end||"")}</small></td><td>${Number(l.days||0)}</td><td>${escapeHtml(l.reason||"")}</td><td>${escapeHtml(l.status||"Pending")}</td><td>${l.status==="Pending"?`<button class="action action-primary" onclick="decideLeave('${escapeJsString(l.id)}','Approved')">Approve</button> <button class="action action-danger" onclick="decideLeave('${escapeJsString(l.id)}','Rejected')">Reject</button>`:`<small>${escapeHtml(l.adminRemarks||"Decided")}</small>`}</td></tr>`).join("");
+}
+
+async function decideLeave(id,status){
+  const org=organizations[currentOrgId], leave=(org.leaveRequests||[]).find(x=>x.id===id);if(!leave)return;
+  const remarks=prompt(`Optional remarks for ${status.toLowerCase()} leave request:`)||"";
+  try{
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/leave-requests/${encodeURIComponent(id)}/decision`,{method:"POST",body:JSON.stringify({status,remarks})});
+    Object.assign(leave,saved);renderAdminLeaveQueue();showToast(`Leave request ${status.toLowerCase()}.`);
+  }catch(error){showToast(`Leave decision failed: ${error.message}`);}
 }
 
 function renderShiftsRoster() {
