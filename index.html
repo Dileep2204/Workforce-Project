@@ -1233,7 +1233,7 @@ button, input, select, textarea { font: inherit; }
                   <th>DEPARTMENT</th>
                   <th>ROLE</th>
                   <th>ASSIGNED SHIFT</th>
-                  <th>PASSWORD</th>
+                  <th>LOGIN ID</th>
                   <th>ATTENDED DAYS</th>
                   <th>BASE / PER-DAY</th>
                   <th>EARNED SALARY</th>
@@ -2150,6 +2150,13 @@ function mapApiOrganization(snapshot) {
     notifications: data.notifications || [],
     messages: data.messages || []
   };
+  org.chats = org.chats || {};
+  (data.messages || []).forEach(message => {
+    const employeeId = message.employee_id || message.empId;
+    if (!employeeId) return;
+    org.chats[employeeId] = org.chats[employeeId] || [];
+    org.chats[employeeId].push(message);
+  });
   org.working = org.present;
   org.absent = Math.max(0, org.totalStaff - org.present);
   return org;
@@ -3670,7 +3677,7 @@ function openAddEmployeeModal() {
         </div>
         <div>
           <label>Login Password *</label>
-          <input id="addEmpPass" value="password123">
+          <input id="addEmpPass" type="password" minlength="12" autocomplete="new-password" placeholder="At least 12 characters">
         </div>
       </div>
 
@@ -3758,7 +3765,7 @@ function renderEmployeeDirectory() {
         <td>${escapeHtml(e.dept)}</td>
         <td>${escapeHtml(e.role)}</td>
         <td><span class="pill" style="font-size:10px">${escapeHtml(e.shift || 'Morning A (08:00 - 16:30)')}</span></td>
-        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${escapeHtml(e.password || 'password123')}</code></td>
+        <td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">${escapeHtml(e.login || e.id)}</code></td>
         <td><b>${attended} / ${e.totalDays || 26} Days</b></td>
         <td>₹ ${e.basePay.toLocaleString('en-IN')} / ₹ ${calc.perDay}</td>
         <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
