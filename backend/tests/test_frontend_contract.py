@@ -28,6 +28,8 @@ def test_leave_decisions_and_payslips_use_api():
     assert '/leave-requests/' in HTML
     assert 'resources/payslips' in HTML
     assert 'function issuePayslip' in HTML
+    assert 'markNotificationRead' in HTML
+    assert 'completeWorkOrder' in HTML
 
 
 def test_no_browser_local_storage_or_plaintext_password_display():
