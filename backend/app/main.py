@@ -165,19 +165,25 @@ def assert_resource_access(org: Organization, resource_type: str, payload: dict,
         raise HTTPException(403, "Cross-organization access denied")
     if user.role == "admin":
         return
+    owner = payload.get("employee_id") or payload.get("empId") or payload.get("submitterId")
+
     if not write:
-        owner = payload.get("employee_id") or payload.get("empId") or payload.get("submitterId")
-        if resource_type in {"employees", "tasks", "shifts"}:
-            if resource_type == "employees" and (payload.get("employee_id") or payload.get("id") or external_id) != user.employee_id:
+        if resource_type == "employees":
+            record_owner = payload.get("employee_id") or payload.get("id") or external_id
+            if str(record_owner) != str(user.employee_id):
                 raise HTTPException(403, "You can only view your own employee record")
-            if resource_type in {"tasks", "shifts"}:
-                return
-        elif owner and str(owner) != str(user.employee_id):
+            return
+        # Employee data is private by default. Tasks, shifts and other records must
+        # explicitly identify their owner; missing ownership is never treated as public.
+        if not owner or str(owner) != str(user.employee_id):
             raise HTTPException(403, "You can only view your own records")
         return
-    if resource_type not in {"attendanceLogs", "leaveRequests", "supportQueries", "resignations", "workloadRequests", "messages", "chats"}:
+
+    # Generic JSON resources cannot safely implement workflow state transitions.
+    # Employees may submit new leave requests and support tickets only. They cannot
+    # create attendance/payroll/message records or alter approvals through PATCH.
+    if resource_type not in {"leaveRequests", "supportQueries"}:
         raise HTTPException(403, "Employees cannot modify this resource")
-    owner = payload.get("employee_id") or payload.get("empId") or payload.get("submitterId")
     if not owner or str(owner) != str(user.employee_id):
         raise HTTPException(403, "Employee-owned record is required")
 
@@ -239,6 +245,8 @@ def update_resource(
     ))
     if not row:
         raise HTTPException(404, "Record not found")
+    if user.role == "employee":
+        raise HTTPException(403, "Employees cannot update workflow records; submit a new request or ticket")
     assert_resource_access(org, resource_type, row.payload, user, True)
     assert_resource_access(org, resource_type, body.payload, user, True)
     row.payload = body.payload
@@ -289,6 +297,12 @@ def replace_snapshot(
     user: User = Depends(require_roles("admin", "superadmin"))
 ):
     org = org_for_user(db, code.upper(), user)
+    # Full snapshot replacement is intentionally disabled: a partial or stale
+    # client snapshot could silently erase payroll, attendance or leave history.
+    raise HTTPException(
+        status_code=410,
+        detail="Bulk snapshot replacement is disabled. Use individual resource endpoints to preserve existing records."
+    )
     unknown = set(body.resources) - RESOURCE_TYPES
     if unknown:
         raise HTTPException(422, f"Unsupported resource types: {', '.join(sorted(unknown))}")
