@@ -2080,8 +2080,8 @@ function updateDemo(prefilledOrgId) {
     orgSel.value = activeOrg.orgId;
   }
   if (orgInput) orgInput.value = activeOrg.orgId;
-  userInput.value = activeOrg.adminUser;
-  passInput.value = activeOrg.adminPass;
+  userInput.value = "";
+  passInput.value = "";
 
   const demoEmp = (activeOrg.employees && activeOrg.employees.length > 0) ? activeOrg.employees[0].id : "E-1024";
   document.getElementById("demoNote").innerHTML = `
@@ -2097,8 +2097,8 @@ function handleOrgSelectChange() {
     inp.value = sel.value;
     const orgObj = organizations[sel.value];
     if (orgObj) {
-      document.getElementById("username").value = orgObj.adminUser;
-      document.getElementById("password").value = orgObj.adminPass;
+      document.getElementById("username").value = "";
+      document.getElementById("password").value = "";
     }
   }
 }
