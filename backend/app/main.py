@@ -220,7 +220,7 @@ def assert_resource_access(org: Organization, resource_type: str, payload: dict,
     # Generic JSON resources cannot safely implement workflow state transitions.
     # Employees may submit new leave requests and support tickets only. They cannot
     # create attendance/payroll/message records or alter approvals through PATCH.
-    if resource_type not in {"leaveRequests", "supportQueries"}:
+    if resource_type not in {"leaveRequests", "supportQueries", "resignations", "workloadRequests"}:
         raise HTTPException(403, "Employees cannot modify this resource")
     if not owner or str(owner) != str(user.employee_id):
         raise HTTPException(403, "Employee-owned record is required")
