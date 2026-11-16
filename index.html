@@ -3115,43 +3115,28 @@ function openConfirmDeletionModal(auditId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveConfirmedDeletion(auditId) {
-  const reason = (document.getElementById("superDeletionConfirmReason")?.value || "").trim();
-  if (!reason) {
-    showToast("Please enter mandatory deletion confirmation reason!");
-    return;
-  }
-
-  const item = deletionAudits.find(a => a.id === auditId);
-  if (item) {
-    item.status = "Confirmed & Purged";
-    item.superReason = reason;
-    item.resolvedDate = new Date().toLocaleString();
-
-    const org = organizations[item.orgId];
-    if (org && org.employees) {
-      org.employees = org.employees.filter(e => e.id !== item.empId);
-      org.totalStaff = Math.max(0, (org.totalStaff || 1) - 1);
-    }
-  }
-
-  closeUniversalModal();
-  renderSuperRetentionsView();
-  showToast(`Employee record permanently purged under audit #${auditId}.`);
+async function saveConfirmedDeletion(auditId) {
+  const reason=(document.getElementById("superDeletionConfirmReason")?.value||"").trim();
+  const item=deletionAudits.find(a=>a.id===auditId);
+  if(!reason||!item)return showToast("Enter the mandatory confirmation reason.");
+  const org=organizations[item.orgId];if(!org)return showToast("Organization is not loaded.");
+  const updated={...item,status:"Confirmed & Purged",superReason:reason,resolvedDate:new Date().toISOString()};
+  try{
+    await sskattApi(`/organizations/${encodeURIComponent(item.orgId)}/employees/${encodeURIComponent(item.empId)}/deactivate`,{method:"POST"});
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(item.orgId)}/resources/deletionAudits/${encodeURIComponent(auditId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});
+    Object.assign(item,saved);org.employees=(org.employees||[]).filter(e=>e.id!==item.empId);
+    closeUniversalModal();renderSuperRetentionsView();showToast("Employee account deactivated; records retained for audit.");
+  }catch(error){showToast(`Deactivation failed: ${error.message}`);}
 }
 
-function rejectAndRestoreEmployee(auditId) {
-  const item = deletionAudits.find(a => a.id === auditId);
-  if (item) {
-    item.status = "Rejected / Restored";
-    item.superReason = "Deletion rejected by Super Admin. Employee restored to active directory.";
-    item.resolvedDate = new Date().toLocaleString();
-  }
-
-  closeUniversalModal();
-  renderSuperRetentionsView();
-  showToast(`Deletion request #${auditId} rejected. Employee remains active.`);
+async function rejectAndRestoreEmployee(auditId) {
+  const item=deletionAudits.find(a=>a.id===auditId);if(!item)return;
+  const updated={...item,status:"Rejected / Restored",superReason:"Deletion rejected by Super Admin. Employee remains active.",resolvedDate:new Date().toISOString()};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(item.orgId)}/resources/deletionAudits/${encodeURIComponent(auditId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(item,saved);closeUniversalModal();renderSuperRetentionsView();showToast("Deletion request rejected; employee remains active.");}
+  catch(error){showToast(`Decision failed: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    SECTOR ADMIN DELETION INITIATION ENGINE
