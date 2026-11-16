@@ -285,6 +285,30 @@ def attendance_punch(
     } | ({now.date().isoformat()} if body.action == "in" else set()))}
 
 
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/employees/{{employee_id}}/deactivate")
+def deactivate_employee(
+    code: str, employee_id: str, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    account = db.scalar(select(User).where(
+        User.organization_id == org.id, User.employee_id == employee_id, User.role == "employee"
+    ))
+    if not account:
+        raise HTTPException(404, "Employee account not found")
+    account.is_active = False
+    record = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "employees",
+        ResourceRecord.external_id == employee_id
+    ))
+    if record:
+        record.payload = {**record.payload, "status": "Inactive"}
+    audit(db, user, org, "employee.deactivated", "employees", employee_id)
+    db.commit()
+    return {"employee_id": employee_id, "active": False}
+
+
 @app.post(f"{settings.api_prefix}/organizations/{{code}}/leave-requests/{{external_id}}/decision")
 def decide_leave_request(
     code: str, external_id: str, body: LeaveDecisionRequest,
