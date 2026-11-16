@@ -2104,58 +2104,137 @@ function handleOrgSelectChange() {
   }
 }
 
+
+// ---------------- SSKATT API integration ----------------
+// Configure this to the deployed API origin when the backend is hosted.
+const SSKATT_API_BASE = window.SSKATT_API_BASE || "http://localhost:8000/api/v1";
+let sskattAccessToken = sessionStorage.getItem("sskatt_access_token") || "";
+let authenticatedUser = null;
+
+async function sskattApi(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (sskattAccessToken) headers.Authorization = `Bearer ${sskattAccessToken}`;
+  const response = await fetch(`${SSKATT_API_BASE}${path}`, { ...options, headers });
+  const body = response.status === 204 ? null : await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = body?.detail || body?.message || `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+  return body;
+}
+
+function mapApiOrganization(snapshot) {
+  const data = snapshot.resources || {};
+  const orgInfo = snapshot.organization || {};
+  const org = {
+    orgId: orgInfo.code,
+    sector: orgInfo.sector,
+    name: orgInfo.name,
+    icon: (SECTOR_METADATA[orgInfo.sector] || {}).icon || "🏢",
+    totalStaff: (data.employees || []).length,
+    present: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "present").length,
+    working: 0,
+    late: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "late").length,
+    absent: 0,
+    departments: [...new Set((data.employees || []).map(x => x.dept).filter(Boolean))],
+    employees: data.employees || [],
+    tasks: data.tasks || [],
+    shifts: data.shifts || [],
+    leaveRequests: data.leaveRequests || [],
+    resignations: data.resignations || [],
+    workloadRequests: data.workloadRequests || [],
+    chats: Object.fromEntries((data.chats || []).map(x => [x.id, x])),
+    supportQueries: data.supportQueries || [],
+    attendanceLogs: data.attendanceLogs || [],
+    payslips: data.payslips || [],
+    notifications: data.notifications || [],
+    messages: data.messages || []
+  };
+  org.working = org.present;
+  org.absent = Math.max(0, org.totalStaff - org.present);
+  return org;
+}
+
+async function loadOrganizationFromApi(code) {
+  const snapshot = await sskattApi(`/organizations/${encodeURIComponent(code)}/snapshot`);
+  const org = mapApiOrganization(snapshot);
+  organizations[org.orgId] = org;
+  return org;
+}
+
+async function loadAllOrganizationsFromApi() {
+  const records = await sskattApi("/organizations");
+  const loaded = [];
+  for (const item of records) {
+    const org = await loadOrganizationFromApi(item.code);
+    loaded.push(org);
+  }
+  return loaded;
+}
+
 async function login() {
   const chosenSector = document.getElementById("sectorSelect")?.value || "Hospital";
   const enteredOrgId = (document.getElementById("org").value || "").trim().toUpperCase();
   const userInput = (document.getElementById("username").value || "").trim();
-  const passInput = (document.getElementById("password").value || "").trim();
+  const passInput = (document.getElementById("password").value || "");
 
-  if (!userInput) {
-    showToast("Please enter username or employee ID");
+  if (!userInput || !passInput) {
+    showToast("Enter your username and password.");
     return;
   }
 
-  if (userInput.toLowerCase() === "superadmin" || chosenSector === "Other") {
-    if (passInput !== "superadmin123") {
-      showToast("Invalid password for Super Admin!");
+  const button = document.querySelector("#loginModal button[onclick='login()']");
+  if (button) button.disabled = true;
+  try {
+    const result = await sskattApi("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        organization_code: (userInput.toLowerCase() === "superadmin" || chosenSector === "Other") ? null : enteredOrgId,
+        username: userInput,
+        password: passInput
+      })
+    });
+    sskattAccessToken = result.access_token;
+    sessionStorage.setItem("sskatt_access_token", sskattAccessToken);
+    authenticatedUser = result.user;
+
+    if (authenticatedUser.role === "superadmin") {
+      currentUserRole = "superadmin";
+      const allOrgs = await loadAllOrganizationsFromApi();
+      if (allOrgs.length) currentOrgId = allOrgs[0].orgId;
+      supportQueries = allOrgs.flatMap(o => o.supportQueries || []);
+      deletionAudits = allOrgs.flatMap(o => o.deletionAudits || []);
+      completeLogin("super-overview", "Authenticated with SSKATT API as Super Admin");
       return;
     }
-    currentUserRole = "superadmin";
-    completeLogin("super-overview", "Authenticated as Platform Super Administrator (Root)");
-    return;
-  }
 
-  const targetOrg = organizations[enteredOrgId] || Object.values(organizations).find(o => o.sector === chosenSector);
-  if (!targetOrg) {
-    showToast(`Organization ID ${enteredOrgId} does not exist`);
-    return;
-  }
-
-  currentOrgId = targetOrg.orgId;
-
-  if (userInput.toLowerCase() === targetOrg.adminUser.toLowerCase() || userInput.toLowerCase() === "admin") {
-    if (passInput !== targetOrg.adminPass && passInput !== "admin123") {
-      showToast("Invalid password for Sector Admin!");
+    currentOrgId = authenticatedUser.organization_code;
+    const org = await loadOrganizationFromApi(currentOrgId);
+    org.adminUser = authenticatedUser.username;
+    if (authenticatedUser.role === "admin") {
+      currentUserRole = "admin";
+      supportQueries = org.supportQueries || [];
+      completeLogin("dashboard", `Signed in to ${org.name} (${org.orgId})`);
       return;
     }
-    currentUserRole = "admin";
-    completeLogin("dashboard", `Signed in as ${targetOrg.sector} Admin (${targetOrg.orgId})`);
-    return;
+
+    if (authenticatedUser.role === "employee") {
+      currentUserRole = "employee";
+      currentEmployeeId = authenticatedUser.employee_id;
+      const employee = (org.employees || []).find(e => String(e.id || e.employee_id) === String(currentEmployeeId));
+      if (!employee) throw new Error("Your employee profile is not linked to this account. Contact your organization administrator.");
+      completeLogin("emp-overview", `Welcome back, ${employee.name || authenticatedUser.full_name}`);
+      return;
+    }
+    throw new Error("This account has an unsupported role.");
+  } catch (error) {
+    sskattAccessToken = "";
+    authenticatedUser = null;
+    sessionStorage.removeItem("sskatt_access_token");
+    showToast(error.message || "Unable to sign in. Check the API connection and credentials.");
+  } finally {
+    if (button) button.disabled = false;
   }
-
-  const matchedEmp = (targetOrg.employees || []).find(e => 
-    (e.id.toLowerCase() === userInput.toLowerCase() || e.name.toLowerCase() === userInput.toLowerCase()) &&
-    (e.password === passInput || passInput === "password123")
-  );
-
-  if (matchedEmp) {
-    currentUserRole = "employee";
-    currentEmployeeId = matchedEmp.id;
-    completeLogin("emp-overview", `Welcome back, ${matchedEmp.name} (${matchedEmp.id})`);
-    return;
-  }
-
-  showToast(`Invalid credentials for Organization ID ${enteredOrgId}`);
 }
 
 function completeLogin(targetTab, toastMsg) {
