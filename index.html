@@ -1810,9 +1810,9 @@ const INITIAL_ORGANIZATIONS = {
     departments: ["Emergency", "Nursing", "Diagnostics", "Pharmacy"],
     employees: [
       { id: "E-1024", name: "Dr. Ananya Rao", dept: "Emergency", role: "Chief Trauma Specialist", shift: "Morning A (08:00 - 16:30)", login: "08:54", logout: "—", task: "Trauma Ward Acute Care", status: "Present", basePay: 180000, attendedDays: 24, totalDays: 26, otPay: 14500, deductions: 22000, email: "a.rao@apexhealth.org",  casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 },
-      { id: "E-1041", name: "Rahul Menon", dept: "Nursing", role: "Senior Staff Nurse", shift: "General (09:00 - 17:30)", login: "09:18", logout: "—", task: "Ward B Post-Op Monitoring", status: "Late", basePay: 65000, attendedDays: 22, totalDays: 26, otPay: 4200, deductions: 6800, email: "r.menon@apexhealth.org", password: "password123", casualLeaves: 5, sickLeaves: 3, privilegeLeaves: 10 },
-      { id: "E-1088", name: "Priya Shah", dept: "Diagnostics", role: "Senior Radiologist", shift: "Morning B (08:30 - 17:00)", login: "08:41", logout: "17:32", task: "CT/MRI Diagnostic Queue", status: "Present", basePay: 140000, attendedDays: 25, totalDays: 26, otPay: 8000, deductions: 16500, email: "p.shah@apexhealth.org", password: "password123", casualLeaves: 7, sickLeaves: 5, privilegeLeaves: 14 },
-      { id: "E-001", name: "Dr. Dileep", dept: "Nursing", role: "Clinical Operations Lead", shift: "Morning A (08:00 - 16:30)", login: "07:48", logout: "—", task: "Patient Intake & Roster Triage", status: "Present", basePay: 175000, attendedDays: 26, totalDays: 26, otPay: 12000, deductions: 21000, email: "dileep@apexhealth.org", password: "password123", casualLeaves: 8, sickLeaves: 4, privilegeLeaves: 10 }
+      { id: "E-1041", name: "Rahul Menon", dept: "Nursing", role: "Senior Staff Nurse", shift: "General (09:00 - 17:30)", login: "09:18", logout: "—", task: "Ward B Post-Op Monitoring", status: "Late", basePay: 65000, attendedDays: 22, totalDays: 26, otPay: 4200, deductions: 6800, email: "r.menon@apexhealth.org", casualLeaves: 5, sickLeaves: 3, privilegeLeaves: 10 },
+      { id: "E-1088", name: "Priya Shah", dept: "Diagnostics", role: "Senior Radiologist", shift: "Morning B (08:30 - 17:00)", login: "08:41", logout: "17:32", task: "CT/MRI Diagnostic Queue", status: "Present", basePay: 140000, attendedDays: 25, totalDays: 26, otPay: 8000, deductions: 16500, email: "p.shah@apexhealth.org", casualLeaves: 7, sickLeaves: 5, privilegeLeaves: 14 },
+      { id: "E-001", name: "Dr. Dileep", dept: "Nursing", role: "Clinical Operations Lead", shift: "Morning A (08:00 - 16:30)", login: "07:48", logout: "—", task: "Patient Intake & Roster Triage", status: "Present", basePay: 175000, attendedDays: 26, totalDays: 26, otPay: 12000, deductions: 21000, email: "dileep@apexhealth.org", casualLeaves: 8, sickLeaves: 4, privilegeLeaves: 10 }
     ],
     tasks: [
       { id: "TSK-H1", title: "Emergency Trauma Duty", zone: "Ward A / Trauma", assignee: "Dr. Ananya Rao", priority: "High", progress: 85, status: "In Progress" },
@@ -1856,7 +1856,6 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Manufacturing",
     name: "Precision Forgings & Industrial Plant",
     adminUser: "admin",
-    adminPass: "admin123",
     icon: "🏭",
     totalStaff: 412,
     present: 388,
@@ -1865,7 +1864,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 24,
     departments: ["Production", "Quality", "Tooling"],
     employees: [
-      { id: "M-2041", name: "Ravi Kumar", dept: "Production", role: "CNC Lead Operator", shift: "Shift 1 (07:00 - 15:30)", login: "07:54", logout: "—", task: "Automated Line 02 Milling", status: "Present", basePay: 48000, attendedDays: 23, totalDays: 26, otPay: 7600, deductions: 5100, email: "r.kumar@precisionmfg.com", password: "password123", casualLeaves: 5, sickLeaves: 4, privilegeLeaves: 10 }
+      { id: "M-2041", name: "Ravi Kumar", dept: "Production", role: "CNC Lead Operator", shift: "Shift 1 (07:00 - 15:30)", login: "07:54", logout: "—", task: "Automated Line 02 Milling", status: "Present", basePay: 48000, attendedDays: 23, totalDays: 26, otPay: 7600, deductions: 5100, email: "r.kumar@precisionmfg.com", casualLeaves: 5, sickLeaves: 4, privilegeLeaves: 10 }
     ],
     tasks: [],
     shifts: [{ name: "Standard Operational Window", hours: "08:00 - 17:00", required: 30, allocated: 30, status: "Optimal" }],
@@ -1879,7 +1878,6 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Construction",
     name: "Skyline Infra & Metro Construction",
     adminUser: "admin",
-    adminPass: "admin123",
     icon: "🏗️",
     totalStaff: 310,
     present: 274,
@@ -1888,7 +1886,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 36,
     departments: ["Civil", "Safety", "Electrical"],
     employees: [
-      { id: "C-3011", name: "Arjun Reddy", dept: "Civil", role: "Site Resident Engineer", shift: "Site Day (08:00 - 17:00)", login: "08:06", logout: "—", task: "Tower B - Deck 8 Slab Pour", status: "Present", basePay: 82000, attendedDays: 24, totalDays: 26, otPay: 9800, deductions: 9100, email: "a.reddy@skylineinfra.com", password: "password123", casualLeaves: 6, sickLeaves: 3, privilegeLeaves: 12 }
+      { id: "C-3011", name: "Arjun Reddy", dept: "Civil", role: "Site Resident Engineer", shift: "Site Day (08:00 - 17:00)", login: "08:06", logout: "—", task: "Tower B - Deck 8 Slab Pour", status: "Present", basePay: 82000, attendedDays: 24, totalDays: 26, otPay: 9800, deductions: 9100, email: "a.reddy@skylineinfra.com", casualLeaves: 6, sickLeaves: 3, privilegeLeaves: 12 }
     ],
     tasks: [],
     shifts: [{ name: "Standard Operational Window", hours: "08:00 - 17:00", required: 30, allocated: 30, status: "Optimal" }],
@@ -1902,7 +1900,6 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Corporate",
     name: "Aether Technologies Global HQ",
     adminUser: "admin",
-    adminPass: "admin123",
     icon: "🏢",
     totalStaff: 195,
     present: 182,
@@ -1911,7 +1908,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 13,
     departments: ["Engineering", "Product", "Operations"],
     employees: [
-      { id: "P-4012", name: "Neha Sharma", dept: "Engineering", role: "Principal Architect", shift: "Flexible (09:00 - 18:00)", login: "09:02", logout: "—", task: "Project Orion Cloud Infrastructure", status: "Present", basePay: 210000, attendedDays: 25, totalDays: 26, otPay: 0, deductions: 28000, email: "n.sharma@aethertech.io", password: "password123", casualLeaves: 8, sickLeaves: 5, privilegeLeaves: 15 }
+      { id: "P-4012", name: "Neha Sharma", dept: "Engineering", role: "Principal Architect", shift: "Flexible (09:00 - 18:00)", login: "09:02", logout: "—", task: "Project Orion Cloud Infrastructure", status: "Present", basePay: 210000, attendedDays: 25, totalDays: 26, otPay: 0, deductions: 28000, email: "n.sharma@aethertech.io", casualLeaves: 8, sickLeaves: 5, privilegeLeaves: 15 }
     ],
     tasks: [],
     shifts: [{ name: "Corporate Core Hours", hours: "09:00 - 18:00", required: 120, allocated: 120, status: "Optimal" }],
