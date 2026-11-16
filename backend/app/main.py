@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 import re
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -12,7 +12,7 @@ from app.config import settings
 from app.database import Base, engine, get_db
 from app.deps import get_current_user, require_roles
 from app.models import AuditLog, Organization, ResourceRecord, User
-from app.schemas import LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
+from app.schemas import AttendancePunchRequest, LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
 from app.security import create_access_token, hash_password, verify_password
 
 RESOURCE_TYPES = {
@@ -187,6 +187,48 @@ def assert_resource_access(org: Organization, resource_type: str, payload: dict,
         raise HTTPException(403, "Employees cannot modify this resource")
     if not owner or str(owner) != str(user.employee_id):
         raise HTTPException(403, "Employee-owned record is required")
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/attendance/punch", status_code=201)
+def attendance_punch(
+    code: str, body: AttendancePunchRequest, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("employee"))
+):
+    org = org_for_user(db, code.upper(), user)
+    if not user.employee_id:
+        raise HTTPException(403, "Employee account is not linked to an employee ID")
+
+    rows = db.scalars(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "attendanceLogs"
+    )).all()
+    own_rows = [row for row in rows if str(row.payload.get("employee_id") or row.payload.get("empId") or "") == str(user.employee_id)]
+    last = max(own_rows, key=lambda row: row.created_at) if own_rows else None
+    last_action = (last.payload.get("action") or "").lower() if last else ""
+
+    if body.action == "in" and last_action == "in":
+        raise HTTPException(409, "You are already punched in")
+    if body.action == "out" and last_action != "in":
+        raise HTTPException(409, "You must punch in before punching out")
+
+    now = datetime.now(timezone.utc)
+    external_id = f"ATT-{uuid4().hex}"
+    payload = {
+        "employee_id": user.employee_id,
+        "empId": user.employee_id,
+        "action": body.action,
+        "timestamp": now.isoformat(),
+        "date": now.date().isoformat(),
+        "status": "Present" if body.action == "in" else "Checked Out",
+    }
+    row = ResourceRecord(
+        organization_id=org.id, resource_type="attendanceLogs",
+        external_id=external_id, payload=payload
+    )
+    db.add(row)
+    audit(db, user, org, f"attendance.punch_{body.action}", "attendanceLogs", external_id)
+    db.commit()
+    return {"id": external_id, **payload}
 
 
 @app.get(f"{settings.api_prefix}/organizations/{{code}}/resources/{{resource_type}}")
