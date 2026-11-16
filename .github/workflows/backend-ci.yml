@@ -9,12 +9,27 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sskatt_test
+          POSTGRES_USER: sskatt
+          POSTGRES_PASSWORD: sskatt_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sskatt -d sskatt_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
     env:
       JWT_SECRET: ci-only-secret-do-not-use-in-production
       SUPERADMIN_PASSWORD: ci-only-password-do-not-use-in-production
+      DATABASE_URL: postgresql+psycopg://sskatt:sskatt_ci_password@localhost:5432/sskatt_test
       ENVIRONMENT: test
     steps:
       - uses: actions/checkout@v4
