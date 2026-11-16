@@ -1,13 +1,12 @@
 """Create the first platform administrator and an optional demo hospital."""
 from sqlalchemy import select
 from app.config import settings
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal
 from app.models import Organization, User, ResourceRecord
 from app.security import hash_password
 
 
 def run():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         root = db.scalar(select(User).where(User.role == "superadmin", User.username == settings.superadmin_username))
