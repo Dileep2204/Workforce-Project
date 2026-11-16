@@ -3938,10 +3938,27 @@ function renderPayslips() {
         <td><b style="color:var(--blue)">${attended} / ${e.totalDays || 26} Days</b></td>
         <td>₹ ${e.basePay.toLocaleString('en-IN')}</td>
         <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
-        <td><button class="action action-primary" onclick="viewDetailedPayslip('${e.id}')">View Voucher</button></td>
+        <td><button class="action action-primary" onclick="issuePayslip('${e.id}')">Issue Payslip</button> <button class="action" onclick="viewDetailedPayslip('${e.id}')">View Voucher</button></td>
       </tr>
     `;
   }).join("");
+}
+
+async function issuePayslip(empId){
+  const org=organizations[currentOrgId], emp=(org.employees||[]).find(x=>x.id===empId);if(!emp)return;
+  const period=new Date().toISOString().slice(0,7);
+  const existing=(org.payslips||[]).find(x=>x.employee_id===empId&&x.period===period);
+  if(existing)return showToast("A payslip has already been issued for this employee and period.");
+  const calc=calculateAttendanceSalary(emp);
+  const record={id:`PAY-${empId}-${period}`,employee_id:empId,empId,empName:emp.name,period,
+    basePay:Number(emp.basePay||0),attendedDays:Number(emp.attendedDays||0),totalDays:Number(emp.totalDays||26),
+    overtime:Number(emp.otPay||0),deductions:Number(emp.deductions||0),netSalary:Number(calc.netSalary||0),
+    status:"Issued",issuedAt:new Date().toISOString(),issuedBy:authenticatedUser?.username||"admin"};
+  try{
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/payslips`,{method:"POST",body:JSON.stringify({external_id:record.id,payload:record})});
+    org.payslips=org.payslips||[];org.payslips.unshift(saved);renderPayslips();
+    showToast(`Payslip for ${emp.name} issued and saved.`);
+  }catch(error){showToast(`Payslip was not issued: ${error.message}`);}
 }
 
 function viewDetailedPayslip(empId) {
