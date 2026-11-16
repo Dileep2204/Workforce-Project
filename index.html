@@ -1508,6 +1508,11 @@ button, input, select, textarea { font: inherit; }
           <div class="kpi"><div class="label">CALCULATED TAKE-HOME SALARY</div><div class="value" id="essNetPayValue" style="color:var(--green)">₹ 1,52,307</div><div class="trend" style="color:var(--green)">Attendance-Calculated</div></div>
         </div>
 
+        <div class="panel" style="margin-bottom:18px">
+          <h3>🔔 My Notifications</h3>
+          <div id="employeeNotificationsList" style="display:grid;gap:8px"><div style="color:var(--muted);font-size:12px">No new notifications.</div></div>
+        </div>
+
         <!-- Recent Tickets Tracker Mini-Widget -->
         <div class="panel">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -4180,6 +4185,7 @@ function renderEmployeeAllViews() {
   const netPayVal = document.getElementById("essNetPayValue");
   if (netPayVal) netPayVal.textContent = `₹ ${calc.netSalary.toLocaleString('en-IN')}`;
 
+  renderEmployeeNotifications();
   renderEmployeeTasksView();
   renderEmployeeShiftRoster();
   renderEmployeeLeaveHistory();
@@ -4187,6 +4193,13 @@ function renderEmployeeAllViews() {
   renderEmployeeTicketsView();
   renderEmployeeRecentTicketsWidget();
   renderEmployeeResignationStatus();
+}
+
+function renderEmployeeNotifications(){
+  const box=document.getElementById("employeeNotificationsList");if(!box)return;
+  const items=organizations[currentOrgId]?.notifications||[];
+  if(!items.length){box.innerHTML='<div style="color:var(--muted);font-size:12px">No notifications yet.</div>';return;}
+  box.innerHTML=items.slice().sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||""))).map(n=>`<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff"><b>${escapeHtml(n.title||"Notification")}</b><div style="font-size:12px;margin-top:3px">${escapeHtml(n.message||"")}</div><small style="color:var(--muted)">${escapeHtml(n.createdAt||"")}</small></div>`).join("");
 }
 
 function renderEmployeeResignationStatus() {
