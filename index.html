@@ -4377,16 +4377,10 @@ function renderEmployeePayslipsView() {
   const calc = calculateAttendanceSalary(emp);
   const attended = typeof emp.attendedDays === 'number' ? emp.attendedDays : 24;
 
-  tbody.innerHTML = `
-    <tr>
-      <td><b>October 2026</b></td>
-      <td><b style="color:var(--blue)">${attended} / ${emp.totalDays || 26} Days</b></td>
-      <td>₹ ${emp.basePay.toLocaleString('en-IN')}</td>
-      <td><b style="color:var(--green)">₹ ${calc.netSalary.toLocaleString('en-IN')}</b></td>
-      <td><span class="status present">Paid</span></td>
-      <td><button class="action action-primary" onclick="viewDetailedPayslip('${emp.id}')">View & Print Sheet</button></td>
-    </tr>
-  `;
+  const issued=(org.payslips||[]).filter(p=>String(p.employee_id||p.empId)===String(emp.id));
+  tbody.innerHTML = issued.length ? issued.map(p=>`
+    <tr><td><b>${escapeHtml(p.period||"")}</b></td><td>${Number(p.attendedDays||0)} / ${Number(p.totalDays||26)} Days</td><td>₹ ${Number(p.basePay||0).toLocaleString('en-IN')}</td><td><b style="color:var(--green)">₹ ${Number(p.netSalary||0).toLocaleString('en-IN')}</b></td><td><span class="status present">${escapeHtml(p.status||"Issued")}</span></td><td><button class="action action-primary" onclick="viewDetailedPayslip('${emp.id}')">View & Print Sheet</button></td></tr>
+  `).join("") : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No payslip has been issued yet. Contact your administrator.</td></tr>';
 
   const inlineBox = document.getElementById("empInlinePayslipContainer");
   if (inlineBox) {
