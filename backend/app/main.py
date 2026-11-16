@@ -263,9 +263,26 @@ def attendance_punch(
         external_id=external_id, payload=payload
     )
     db.add(row)
+    if body.action == "in":
+        attended_dates = {
+            str(item.payload.get("date"))
+            for item in own_rows
+            if item.payload.get("action") == "in" and item.payload.get("date")
+        }
+        attended_dates.add(now.date().isoformat())
+        employee_record = db.scalar(select(ResourceRecord).where(
+            ResourceRecord.organization_id == org.id,
+            ResourceRecord.resource_type == "employees",
+            ResourceRecord.external_id == user.employee_id
+        ))
+        if employee_record:
+            employee_record.payload = {**employee_record.payload, "attendedDays": len(attended_dates)}
     audit(db, user, org, f"attendance.punch_{body.action}", "attendanceLogs", external_id)
     db.commit()
-    return {"id": external_id, **payload}
+    return {"id": external_id, **payload, "attendedDays": len({
+        str(item.payload.get("date")) for item in own_rows
+        if item.payload.get("action") == "in" and item.payload.get("date")
+    } | ({now.date().isoformat()} if body.action == "in" else set()))}
 
 
 @app.post(f"{settings.api_prefix}/organizations/{{code}}/leave-requests/{{external_id}}/decision")
