@@ -2135,13 +2135,13 @@ function mapApiOrganization(snapshot) {
     orgId: orgInfo.code,
     sector: orgInfo.sector,
     name: orgInfo.name,
-    icon: (SECTOR_METADATA[orgInfo.sector] || {}).icon || "🏢",
+    icon: orgInfo.settings?.icon || (SECTOR_METADATA[orgInfo.sector] || {}).icon || "🏢",
     totalStaff: (data.employees || []).length,
     present: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "present").length,
     working: 0,
     late: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "late").length,
     absent: 0,
-    departments: [...new Set((data.employees || []).map(x => x.dept).filter(Boolean))],
+    departments: orgInfo.settings?.defaultDepts || [...new Set((data.employees || []).map(x => x.dept).filter(Boolean))],
     employees: data.employees || [],
     tasks: data.tasks || [],
     shifts: data.shifts || [],
@@ -3728,7 +3728,7 @@ function openProvisionSectorModal() {
       <input id="provSectorOrgName" placeholder="e.g. Central Logistics Hub">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div><label>Admin User</label><input id="provSectorAdminUser" value="admin"></div>
-        <div><label>Admin Password</label><input id="provSectorAdminPass" value="admin123"></div>
+        <div><label>Admin Password</label><input id="provSectorAdminPass" type="password" minlength="12" placeholder="At least 12 characters"></div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
         <button class="btn" style="background:#f1f5f9" onclick="closeUniversalModal()">Cancel</button>
@@ -3739,53 +3739,29 @@ function openProvisionSectorModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-async function saveProvisionedSector() {
-  const rawKey = (document.getElementById("provSectorName")?.value || "").trim();
-  const icon = (document.getElementById("provSectorIcon")?.value || "🚀").trim();
-  const orgId = (document.getElementById("provSectorOrgId")?.value || "").trim().toUpperCase();
-  const facilityName = (document.getElementById("provSectorOrgName")?.value || "").trim() || `${rawKey} Central Hub`;
-  const adminUser = (document.getElementById("provSectorAdminUser")?.value || "admin").trim();
-  const adminPass = (document.getElementById("provSectorAdminPass")?.value || "admin123").trim();
-
-  if (!rawKey || !orgId) return showToast("Please fill all required fields!");
-
-  const sectorName = rawKey.charAt(0).toUpperCase() + rawKey.slice(1);
-  closeUniversalModal();
-
-  const prefix = orgId.split('-')[0] || 'ORG';
-  const leadEmpId = `${prefix}-1024`;
-
-  sectorMeta[sectorName] = { icon: icon, defaultDepts: ['Operations', 'Administration'] };
-  organizations[orgId] = {
-    orgId: orgId,
-    sector: sectorName,
-    name: facilityName,
-    adminUser: adminUser,
-    adminPass: adminPass,
-    icon: icon,
-    totalStaff: 48,
-    present: 44,
-    working: 40,
-    late: 4,
-    absent: 4,
-    departments: ['Operations', 'Administration'],
-    employees: [
-      { id: leadEmpId, name: `Lead Officer (${sectorName})`, dept: 'Operations', role: "Operations Specialist", shift: "Morning (08:30 - 17:00)", login: "08:35", logout: "—", task: "Facility Ramp-Up", status: "Present", basePay: 82000, attendedDays: 24, totalDays: 26, otPay: 4000, deductions: 9800, email: `lead@${orgId.toLowerCase()}.org`, password: "password123", casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 }
-    ],
-    tasks: [],
-    shifts: [{ name: "Standard Operational Window", hours: "08:00 - 17:00", required: 30, allocated: 30, status: "Optimal" }],
-    leaveRequests: [],
-    resignations: [],
-    workloadRequests: [],
-    chats: {}
-  };
-
-  renderLandingSectors();
-  populateSectorDropdown();
-  renderSuperFleet();
-  renderSuperSectorsView();
-  showToast(`Sector "${sectorName}" added successfully! 🎉`);
+async async function saveProvisionedSector() {
+  const rawKey=(document.getElementById("provSectorName")?.value||"").trim();
+  const icon=(document.getElementById("provSectorIcon")?.value||"🚀").trim();
+  const orgId=(document.getElementById("provSectorOrgId")?.value||"").trim().toUpperCase();
+  const facilityName=(document.getElementById("provSectorOrgName")?.value||"").trim()||`${rawKey} Central Hub`;
+  const adminUser=(document.getElementById("provSectorAdminUser")?.value||"admin").trim();
+  const adminPass=document.getElementById("provSectorAdminPass")?.value||"";
+  if(!rawKey||!orgId||!adminUser||adminPass.length<12)return showToast("Enter sector, organization ID, admin username and a password of at least 12 characters.");
+  const sectorName=rawKey.charAt(0).toUpperCase()+rawKey.slice(1);
+  try{
+    const result=await sskattApi("/organizations/provision",{method:"POST",body:JSON.stringify({
+      code:orgId,sector:sectorName,name:facilityName,settings:{icon,defaultDepts:["Operations","Administration"]},
+      admin_username:adminUser,admin_password:adminPass,admin_full_name:`${facilityName} Administrator`
+    })});
+    sectorMeta[sectorName]={icon,defaultDepts:["Operations","Administration"]};
+    const org=await loadOrganizationFromApi(orgId);
+    organizations[orgId]=org;
+    closeUniversalModal();renderLandingSectors();populateSectorDropdown();renderSuperFleet();renderSuperSectorsView();
+    showToast(`Organization ${orgId} and its admin account were created.`);
+  }catch(error){showToast(`Organization provisioning failed: ${error.message}`);}
 }
+
+
 
 function renderAttendanceLogs() {
   const tbody=document.getElementById("attendanceLogsRows");
