@@ -310,6 +310,28 @@ def attendance_punch(
     } | ({now.date().isoformat()} if body.action == "in" else set()))}
 
 
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/notifications/{{external_id}}/read")
+def mark_notification_read(
+    code: str, external_id: str, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("employee"))
+):
+    org = org_for_user(db, code.upper(), user)
+    row = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "notifications",
+        ResourceRecord.external_id == external_id
+    ))
+    if not row:
+        raise HTTPException(404, "Notification not found")
+    owner = row.payload.get("employee_id") or row.payload.get("empId")
+    if str(owner) != str(user.employee_id):
+        raise HTTPException(403, "You can only update your own notifications")
+    row.payload = {**row.payload, "read": True, "readAt": datetime.now(timezone.utc).isoformat()}
+    audit(db, user, org, "notification.read", "notifications", external_id)
+    db.commit()
+    return {"id": row.external_id, **row.payload}
+
+
 @app.post(f"{settings.api_prefix}/organizations/{{code}}/employees/{{employee_id}}/deactivate")
 def deactivate_employee(
     code: str, employee_id: str, db: Session = Depends(get_db),
