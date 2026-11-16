@@ -12,7 +12,7 @@ from app.config import settings
 from app.database import Base, engine, get_db
 from app.deps import get_current_user, require_roles
 from app.models import AuditLog, Organization, ResourceRecord, User
-from app.schemas import AttendancePunchRequest, EmployeeProvisionRequest, LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
+from app.schemas import AttendancePunchRequest, EmployeeProvisionRequest, LeaveDecisionRequest, LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
 from app.security import create_access_token, hash_password, verify_password
 
 RESOURCE_TYPES = {
@@ -266,6 +266,39 @@ def attendance_punch(
     audit(db, user, org, f"attendance.punch_{body.action}", "attendanceLogs", external_id)
     db.commit()
     return {"id": external_id, **payload}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/leave-requests/{{external_id}}/decision")
+def decide_leave_request(
+    code: str, external_id: str, body: LeaveDecisionRequest,
+    db: Session = Depends(get_db), user: User = Depends(require_roles("admin", "superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    row = db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "leaveRequests",
+        ResourceRecord.external_id == external_id
+    ))
+    if not row:
+        raise HTTPException(404, "Leave request not found")
+    if row.payload.get("status") != "Pending":
+        raise HTTPException(409, "Only pending leave requests can be decided")
+    row.payload = {**row.payload, "status": body.status, "adminRemarks": body.remarks,
+                   "decidedAt": datetime.now(timezone.utc).isoformat(),
+                   "decidedBy": user.username}
+    employee_id = row.payload.get("employee_id") or row.payload.get("empId")
+    notification_id = f"NTF-{uuid4().hex}"
+    notification_payload = {
+        "id": notification_id, "employee_id": employee_id, "empId": employee_id,
+        "title": f"Leave request {body.status.lower()}",
+        "message": body.remarks or f"Your leave request {external_id} was {body.status.lower()}.",
+        "type": "leave", "createdAt": datetime.now(timezone.utc).isoformat(), "read": False
+    }
+    db.add(ResourceRecord(organization_id=org.id, resource_type="notifications",
+                          external_id=notification_id, payload=notification_payload))
+    audit(db, user, org, f"leave.{body.status.lower()}", "leaveRequests", external_id)
+    db.commit()
+    return {"id": row.external_id, **row.payload}
 
 
 @app.get(f"{settings.api_prefix}/organizations/{{code}}/resources/{{resource_type}}")
