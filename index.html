@@ -3203,9 +3203,17 @@ function renderWorkAssignments() {
       <td><span class="status" style="${t.priority === 'High' ? 'background:#fee2e2;color:#b91c1c' : ''}">${t.priority}</span></td>
       <td>${t.progress}%</td>
       <td><span class="status in-progress">${t.status}</span></td>
-      <td><button class="action" onclick="openAssignTaskModal('${t.assignee}')">Reassign</button></td>
+      <td><button class="action" onclick="openAssignTaskModal('${t.assignee}')">Reassign</button> <button class="action action-primary" onclick="completeWorkOrder('${t.id}')">Complete</button></td>
     </tr>
   `).join("");
+}
+
+async function completeWorkOrder(taskId){
+  const org=organizations[currentOrgId],task=(org.tasks||[]).find(t=>t.id===taskId);if(!task)return;
+  if(task.status==="Completed")return showToast("Work order is already completed.");
+  const updated={...task,status:"Completed",progress:100,completedAt:new Date().toISOString()};
+  try{const saved=await sskattApi(\`/organizations/\${encodeURIComponent(org.orgId)}/resources/tasks/\${encodeURIComponent(taskId)}\`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(task,saved);renderWorkAssignments();showToast("Work order completion saved.");}
+  catch(error){showToast(\`Could not update work order: \${error.message}\`);}
 }
 
 function openAssignTaskModal(prefilledAssignee) {
