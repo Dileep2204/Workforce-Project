@@ -2669,25 +2669,15 @@ function openRectifyTicketModal(ticketId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveTicketRectification(ticketId) {
-  const q = supportQueries.find(x => x.id === ticketId);
-  const answer = (document.getElementById("superAdminAnswer")?.value || "").trim();
-
-  if (!answer) {
-    showToast("Please provide the resolution answer!");
-    return;
-  }
-
-  if (q) {
-    q.response = answer;
-    q.status = "Resolved";
-    q.resolvedBy = "Super Admin (Root)";
-  }
-
-  closeUniversalModal();
-  renderSuperQueriesView();
-  showToast(`Ticket #${ticketId} resolved and logged.`);
+async function saveTicketRectification(ticketId) {
+  const q=supportQueries.find(x=>x.id===ticketId),answer=(document.getElementById("superAdminAnswer")?.value||"").trim();
+  if(!q||!answer)return showToast("Provide a resolution answer.");
+  const updated={...q,response:answer,status:"Resolved",resolvedBy:"Super Admin (Root)"};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(q.orgId)}/resources/supportQueries/${encodeURIComponent(ticketId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(q,saved);closeUniversalModal();renderSuperQueriesView();showToast("Ticket resolution saved.");}
+  catch(error){showToast(`Ticket resolution failed: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    SECTOR ADMIN SUPPORT DESK & TICKET TRANSFER HIERARCHY
@@ -3197,36 +3187,16 @@ function initiateAdminEmployeeDeletion(empId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function submitAdminEmployeeDeletionRequest(empId) {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === empId);
-  const reason = (document.getElementById("adminDeleteReasonInput")?.value || "").trim();
-
-  if (!reason) {
-    showToast("Please specify the deletion reason!");
-    return;
-  }
-
-  const auditId = `DEL-${Math.floor(1000 + Math.random() * 9000)}`;
-  deletionAudits.unshift({
-    id: auditId,
-    orgId: org.orgId,
-    sector: org.sector,
-    empId: emp.id,
-    empName: emp.name,
-    dept: emp.dept,
-    role: emp.role,
-    initiatedBy: `${org.adminUser} (${org.sector} Admin)`,
-    initiatedDate: new Date().toLocaleString(),
-    adminReason: reason,
-    status: "Pending Confirmation",
-    superReason: "",
-    resolvedDate: ""
-  });
-
-  closeUniversalModal();
-  showToast(`Deletion request for ${emp.name} submitted to Super Admin Desk!`);
+async function submitAdminEmployeeDeletionRequest(empId) {
+  const org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===empId);
+  const reason=(document.getElementById("adminDeleteReasonInput")?.value||"").trim();
+  if(!emp||!reason)return showToast("Specify the deletion reason.");
+  const id=`DEL-${Date.now()}`,record={id,orgId:org.orgId,sector:org.sector,empId:emp.id,employee_id:emp.id,empName:emp.name,dept:emp.dept,role:emp.role,initiatedBy:authenticatedUser?.username||"admin",initiatedDate:new Date().toISOString(),adminReason:reason,status:"Pending Confirmation",superReason:"",resolvedDate:""};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/deletionAudits`,{method:"POST",body:JSON.stringify({external_id:id,payload:record})});deletionAudits.unshift(saved);org.deletionAudits=org.deletionAudits||[];org.deletionAudits.unshift(saved);closeUniversalModal();showToast("Deletion request saved for Super Admin review.");}
+  catch(error){showToast(`Deletion request failed: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    WORK ASSIGNMENT ENGINE
@@ -4062,37 +4032,17 @@ function openReviewResignationModal(resignId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveResignationDecision(resignId, decisionStatus) {
-  const org = organizations[currentOrgId];
-  const r = (org.resignations || []).find(x => x.id === resignId);
-  if (!r) return;
-
-  const officialLwd = document.getElementById("resignOfficialLwdInput")?.value || r.proposedLwd;
-  const remarks = (document.getElementById("resignAdminRemarksInput")?.value || "").trim();
-
-  if (!remarks) {
-    showToast("Please enter a confirmation message for the employee!");
-    return;
-  }
-
-  r.status = decisionStatus;
-  r.officialLwd = officialLwd;
-  r.adminRemarks = remarks;
-
-  if (!org.chats) org.chats = {};
-  if (!org.chats[r.empId]) org.chats[r.empId] = [];
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[r.empId].push({
-    sender: "admin",
-    text: `📝 [RESIGNATION ${decisionStatus.toUpperCase()} — Ref ${r.id}]: Official LWD: ${officialLwd}. Message: "${remarks}"`,
-    time: timeStr
-  });
-
-  closeUniversalModal();
-  renderAdminResignationsQueue();
-  renderAdminChatView();
-  showToast(`Resignation ${r.id} marked as "${decisionStatus}" & message sent to ${r.empName}!`);
+async function saveResignationDecision(resignId, decisionStatus) {
+  const org=organizations[currentOrgId],record=(org.resignations||[]).find(x=>x.id===resignId);if(!record)return;
+  const officialLwd=document.getElementById("resignOfficialLwdInput")?.value||record.proposedLwd;
+  const remarks=(document.getElementById("resignAdminRemarksInput")?.value||"").trim();
+  if(!remarks)return showToast("Enter a confirmation message.");
+  const updated={...record,status:decisionStatus,officialLwd,adminRemarks:remarks};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/resignations/${encodeURIComponent(resignId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(record,saved);await persistEmployeeMessage(record.empId,`Resignation ${decisionStatus}. Official last working day: ${officialLwd}. ${remarks}`,"admin");closeUniversalModal();renderAdminResignationsQueue();renderAdminChatView();showToast("Resignation decision saved and employee notified.");}
+  catch(error){showToast(`Resignation decision failed: ${error.message}`);}
 }
+
+
 
 function renderAdminChatView() {
   const org = organizations[currentOrgId];
@@ -4653,49 +4603,18 @@ function openEscalateBotModal(defaultSubject) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function submitBotEscalationTicket() {
-  const subj = (document.getElementById("botEscalateSubject")?.value || "").trim();
-  const details = (document.getElementById("botEscalateDetails")?.value || "").trim() || "Unresolved operational issue.";
-
-  if (!subj) {
-    showToast("Please enter a ticket subject");
-    return;
-  }
-
-  const isEmp = currentUserRole === "employee";
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const raisedBy = isEmp ? `${emp.name} (Staff ${emp.id})` : `${org.adminUser} (${org.orgId})`;
-  const submitterId = isEmp ? emp.id : org.adminUser;
-
-  const newTicket = {
-    id: `QRY-${Math.floor(Math.random() * 8999 + 1000)}`,
-    orgId: currentOrgId,
-    sector: org.sector,
-    submitter: raisedBy,
-    submitterId: submitterId,
-    role: currentUserRole,
-    target: "Super Admin",
-    subject: subj,
-    details: details,
-    priority: "High",
-    status: "Open",
-    adminNotes: "Dispatched automatically via AI Assistant desk.",
-    response: "",
-    resolvedBy: ""
-  };
-
-  supportQueries.unshift(newTicket);
-  closeUniversalModal();
-
-  botChatHistory.push({
-    sender: "bot",
-    text: `✅ **Ticket Dispatched!**\nTicket **#${newTicket.id}** lodged directly into the **Super Admin Control Center** under **💬 Support & Escalations**.`,
-    canEscalate: false
-  });
-  renderBotMessages();
-  showToast(`Ticket #${newTicket.id} dispatched to Super Admin!`);
+async function submitBotEscalationTicket() {
+  const subject=(document.getElementById("botEscalateSubject")?.value||"").trim();
+  const details=(document.getElementById("botEscalateDetails")?.value||"").trim();
+  if(!subject||!details)return showToast("Enter ticket subject and incident details.");
+  const isEmp=currentUserRole==="employee",org=organizations[currentOrgId],emp=(org.employees||[]).find(e=>e.id===currentEmployeeId);
+  const id=`QRY-${Date.now()}`,submitterId=isEmp?emp?.id:(authenticatedUser?.username||"admin");
+  const ticket={id,orgId:org.orgId,sector:org.sector,submitter:isEmp?`${emp?.name} (Staff ${emp?.id})`:`Admin (${org.orgId})`,submitterId,employee_id:isEmp?emp?.id:undefined,role:currentUserRole,target:"Super Admin",subject,details,priority:"High",status:"Open",adminNotes:"Escalated from assistant",response:"",resolvedBy:""};
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/supportQueries`,{method:"POST",body:JSON.stringify({external_id:id,payload:ticket})});supportQueries.unshift(saved);org.supportQueries=org.supportQueries||[];org.supportQueries.unshift(saved);closeUniversalModal();botChatHistory.push({sender:"bot",text:`Ticket #${id} was saved for Super Admin review.`});renderBotMessages();showToast("Escalation ticket saved.");}
+  catch(error){showToast(`Escalation failed: ${error.message}`);}
 }
+
+
 
 function closeUniversalModal() {
   const modal = document.getElementById("universalModal");
