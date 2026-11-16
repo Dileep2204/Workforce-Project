@@ -467,7 +467,7 @@ def get_snapshot(
             result[row.resource_type].append({"id": row.external_id, **row.payload})
         except HTTPException:
             continue
-    return {"organization": {"code": org.code, "sector": org.sector, "name": org.name}, "resources": result}
+    return {"organization": {"code": org.code, "sector": org.sector, "name": org.name, "settings": org.settings}, "resources": result}
 
 
 @app.put(f"{settings.api_prefix}/organizations/{{code}}/snapshot")
