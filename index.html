@@ -3739,7 +3739,7 @@ function openProvisionSectorModal() {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-async async function saveProvisionedSector() {
+async function saveProvisionedSector() {
   const rawKey=(document.getElementById("provSectorName")?.value||"").trim();
   const icon=(document.getElementById("provSectorIcon")?.value||"🚀").trim();
   const orgId=(document.getElementById("provSectorOrgId")?.value||"").trim().toUpperCase();
