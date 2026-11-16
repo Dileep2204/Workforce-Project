@@ -2162,6 +2162,39 @@ async function loadOrganizationFromApi(code) {
   return org;
 }
 
+async function restoreSskattSession() {
+  if (!sskattAccessToken) return;
+  try {
+    authenticatedUser = await sskattApi("/auth/me");
+    if (authenticatedUser.role === "superadmin") {
+      currentUserRole = "superadmin";
+      const allOrgs = await loadAllOrganizationsFromApi();
+      if (allOrgs.length) currentOrgId = allOrgs[0].orgId;
+      supportQueries = allOrgs.flatMap(o => o.supportQueries || []);
+      completeLogin("super-overview", "Session restored securely");
+      return;
+    }
+    currentOrgId = authenticatedUser.organization_code;
+    const org = await loadOrganizationFromApi(currentOrgId);
+    if (authenticatedUser.role === "admin") {
+      currentUserRole = "admin";
+      supportQueries = org.supportQueries || [];
+      completeLogin("dashboard", "Session restored securely");
+    } else if (authenticatedUser.role === "employee") {
+      currentUserRole = "employee";
+      currentEmployeeId = authenticatedUser.employee_id;
+      completeLogin("emp-overview", "Session restored securely");
+    } else {
+      throw new Error("Unsupported account role");
+    }
+  } catch (error) {
+    sskattAccessToken = "";
+    authenticatedUser = null;
+    sessionStorage.removeItem("sskatt_access_token");
+    console.warn("SSKATT session restore failed:", error.message);
+  }
+}
+
 async function loadAllOrganizationsFromApi() {
   const records = await sskattApi("/organizations");
   const loaded = [];
