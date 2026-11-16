@@ -898,7 +898,7 @@ button, input, select, textarea { font: inherit; }
     <input id="username" value="admin" placeholder="e.g. admin or custom username">
 
     <label>Password</label>
-    <input id="password" type="password" value="admin123" placeholder="Password">
+    <input id="password" type="password" value="" autocomplete="current-password" placeholder="Password">
 
     <button id="btnSubmitLogin" class="btn btn-blue" style="width:100%;margin-top:18px;padding:12px" onclick="login()">Sign In Securely</button>
 
@@ -1800,7 +1800,7 @@ const INITIAL_ORGANIZATIONS = {
     sector: "Hospital",
     name: "Apex Healthcare & Research Institute (Main Branch)",
     adminUser: "admin",
-    adminPass: "admin123",
+    
     icon: "🏥",
     totalStaff: 248,
     present: 221,
@@ -1809,7 +1809,7 @@ const INITIAL_ORGANIZATIONS = {
     absent: 27,
     departments: ["Emergency", "Nursing", "Diagnostics", "Pharmacy"],
     employees: [
-      { id: "E-1024", name: "Dr. Ananya Rao", dept: "Emergency", role: "Chief Trauma Specialist", shift: "Morning A (08:00 - 16:30)", login: "08:54", logout: "—", task: "Trauma Ward Acute Care", status: "Present", basePay: 180000, attendedDays: 24, totalDays: 26, otPay: 14500, deductions: 22000, email: "a.rao@apexhealth.org", password: "password123", casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 },
+      { id: "E-1024", name: "Dr. Ananya Rao", dept: "Emergency", role: "Chief Trauma Specialist", shift: "Morning A (08:00 - 16:30)", login: "08:54", logout: "—", task: "Trauma Ward Acute Care", status: "Present", basePay: 180000, attendedDays: 24, totalDays: 26, otPay: 14500, deductions: 22000, email: "a.rao@apexhealth.org",  casualLeaves: 6, sickLeaves: 4, privilegeLeaves: 12 },
       { id: "E-1041", name: "Rahul Menon", dept: "Nursing", role: "Senior Staff Nurse", shift: "General (09:00 - 17:30)", login: "09:18", logout: "—", task: "Ward B Post-Op Monitoring", status: "Late", basePay: 65000, attendedDays: 22, totalDays: 26, otPay: 4200, deductions: 6800, email: "r.menon@apexhealth.org", password: "password123", casualLeaves: 5, sickLeaves: 3, privilegeLeaves: 10 },
       { id: "E-1088", name: "Priya Shah", dept: "Diagnostics", role: "Senior Radiologist", shift: "Morning B (08:30 - 17:00)", login: "08:41", logout: "17:32", task: "CT/MRI Diagnostic Queue", status: "Present", basePay: 140000, attendedDays: 25, totalDays: 26, otPay: 8000, deductions: 16500, email: "p.shah@apexhealth.org", password: "password123", casualLeaves: 7, sickLeaves: 5, privilegeLeaves: 14 },
       { id: "E-001", name: "Dr. Dileep", dept: "Nursing", role: "Clinical Operations Lead", shift: "Morning A (08:00 - 16:30)", login: "07:48", logout: "—", task: "Patient Intake & Roster Triage", status: "Present", basePay: 175000, attendedDays: 26, totalDays: 26, otPay: 12000, deductions: 21000, email: "dileep@apexhealth.org", password: "password123", casualLeaves: 8, sickLeaves: 4, privilegeLeaves: 10 }
@@ -2073,7 +2073,7 @@ function updateDemo(prefilledOrgId) {
     if (orgSel) orgSel.style.display = "none";
     if (orgInput) { orgInput.style.display = "block"; orgInput.value = "SUPER-ROOT"; }
     userInput.value = "superadmin";
-    passInput.value = "superadmin123";
+    passInput.value = "";
     return;
   }
 
