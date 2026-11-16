@@ -4282,29 +4282,42 @@ function renderEmployeeResignationStatus() {
   `;
 }
 
-function toggleEmployeePunch() {
+async function toggleEmployeePunch() {
   const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === currentEmployeeId) || org.employees[0];
-  const btn = document.getElementById("btnEmpPunchToggle");
-  const badge = document.getElementById("empLivePunchBadge");
-  const overviewBadge = document.getElementById("empOverviewDutyBadge");
+  const emp = (org.employees || []).find(e => e.id === currentEmployeeId);
+  if (!emp) return showToast("Employee profile is not available.");
 
-  if (emp.status === "Present") {
-    emp.status = "Logged Out";
-    if (btn) btn.textContent = "Checked Out (Click to Check In)";
-    if (badge) { badge.textContent = "Checked Out"; badge.className = "status absent"; }
-    if (overviewBadge) { overviewBadge.textContent = "Checked Out"; overviewBadge.className = "status absent"; }
-    showToast("Punched out for shift!");
-  } else {
-    emp.status = "Present";
-    emp.attendedDays = (emp.attendedDays || 23) + 1;
-    if (btn) btn.textContent = "Punched In (Click to Check Out)";
-    if (badge) { badge.textContent = "Present · On Shift"; badge.className = "status present"; }
-    if (overviewBadge) { overviewBadge.textContent = "Active On Duty"; overviewBadge.className = "status present"; }
-    showToast("Punched in successfully! Attendance day recorded.");
+  const logs = (org.attendanceLogs || []).filter(x =>
+    String(x.employee_id || x.empId || "") === String(currentEmployeeId)
+  ).sort((a, b) => String(a.timestamp || "").localeCompare(String(b.timestamp || "")));
+  const latest = logs[logs.length - 1];
+  const action = latest?.action === "in" ? "out" : "in";
+
+  try {
+    const saved = await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/attendance/punch`, {
+      method: "POST",
+      body: JSON.stringify({ action })
+    });
+    org.attendanceLogs = org.attendanceLogs || [];
+    org.attendanceLogs.unshift(saved);
+    emp.status = action === "in" ? "Present" : "Logged Out";
+    const btn = document.getElementById("btnEmpPunchToggle");
+    const badge = document.getElementById("empLivePunchBadge");
+    const overviewBadge = document.getElementById("empOverviewDutyBadge");
+    if (btn) btn.textContent = action === "in" ? "Punched In (Click to Check Out)" : "Checked Out (Click to Check In)";
+    if (badge) {
+      badge.textContent = action === "in" ? "Present · On Shift" : "Checked Out";
+      badge.className = action === "in" ? "status present" : "status absent";
+    }
+    if (overviewBadge) {
+      overviewBadge.textContent = action === "in" ? "Active On Duty" : "Checked Out";
+      overviewBadge.className = action === "in" ? "status present" : "status absent";
+    }
+    renderEmployeeAllViews();
+    showToast(action === "in" ? "Attendance check-in saved." : "Attendance check-out saved.");
+  } catch (error) {
+    showToast(`Attendance was not saved: ${error.message}`);
   }
-
-  renderEmployeeAllViews();
 }
 
 function renderEmployeeShiftRoster() {
