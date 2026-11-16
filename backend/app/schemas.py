@@ -67,3 +67,9 @@ class EmployeeProvisionRequest(BaseModel):
 class LeaveDecisionRequest(BaseModel):
     status: Literal["Approved", "Rejected"]
     remarks: str = Field(default="", max_length=1000)
+
+
+class OrganizationProvisionRequest(OrganizationCreate):
+    admin_username: str = Field(min_length=2, max_length=120)
+    admin_password: str = Field(min_length=12, max_length=256)
+    admin_full_name: str = Field(default="Organization Administrator", min_length=2, max_length=200)
