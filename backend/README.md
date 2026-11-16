@@ -106,7 +106,7 @@ python -m compileall -q app migrations tests
 python -m pytest -q
 ```
 
-GitHub Actions runs the same compile and authorization checks on pushes and pull requests. These tests cover the authorization helper; they are not a substitute for PostgreSQL-backed API integration tests or browser end-to-end tests.
+GitHub Actions starts a disposable PostgreSQL 16 service and runs the authorization tests plus API integration tests for employee provisioning, login, attendance persistence, leave approval/notifications and tenant isolation. It also compiles the Python package and checks the embedded frontend JavaScript with Node. These automated tests are valuable but still do not replace browser end-to-end tests across every page, a production-like deployment rehearsal or a security review.
 
 ## Production checklist
 - Set `ENVIRONMENT=production`; the API will not run `create_all` on startup. Apply Alembic migrations before starting the service.
