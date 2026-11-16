@@ -12,7 +12,7 @@ from app.config import settings
 from app.database import Base, engine, get_db
 from app.deps import get_current_user, require_roles
 from app.models import AuditLog, Organization, ResourceRecord, User
-from app.schemas import AttendancePunchRequest, EmployeeProvisionRequest, LeaveDecisionRequest, LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
+from app.schemas import AttendancePunchRequest, EmployeeProvisionRequest, LeaveDecisionRequest, LoginRequest, OrganizationCreate, OrganizationProvisionRequest, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
 from app.security import create_access_token, hash_password, verify_password
 
 RESOURCE_TYPES = {
@@ -113,6 +113,31 @@ def list_organizations(
     if user.role != "superadmin":
         stmt = stmt.where(Organization.id == user.organization_id)
     return [{"code": o.code, "sector": o.sector, "name": o.name, "settings": o.settings} for o in db.scalars(stmt).all()]
+
+
+@app.post(f"{settings.api_prefix}/organizations/provision", status_code=201)
+def provision_organization(
+    body: OrganizationProvisionRequest, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("superadmin"))
+):
+    code = body.code.strip().upper()
+    username = body.admin_username.strip()
+    if not re.fullmatch(r"[A-Z0-9][A-Z0-9-]{1,39}", code):
+        raise HTTPException(422, "Organization code may contain only letters, numbers, and hyphens")
+    if db.scalar(select(Organization).where(Organization.code == code)):
+        raise HTTPException(409, "Organization code already exists")
+    org = Organization(code=code, sector=body.sector.strip(), name=body.name.strip(), settings=body.settings)
+    db.add(org)
+    db.flush()
+    admin = User(
+        organization_id=org.id, username=username, full_name=body.admin_full_name.strip(),
+        role="admin", password_hash=hash_password(body.admin_password)
+    )
+    db.add(admin)
+    audit(db, user, org, "organization.provisioned", "organizations", code)
+    db.commit()
+    return {"organization": {"code": org.code, "sector": org.sector, "name": org.name},
+            "admin": {"username": admin.username, "role": admin.role}}
 
 
 @app.post(f"{settings.api_prefix}/organizations", status_code=201)
