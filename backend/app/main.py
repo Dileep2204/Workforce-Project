@@ -158,7 +158,7 @@ def create_user(
     return {"username": new_user.username, "role": new_user.role, "employee_id": new_user.employee_id}
 
 
-def assert_resource_access(org: Organization, resource_type: str, payload: dict, user: User, write: bool):
+def assert_resource_access(org: Organization, resource_type: str, payload: dict, user: User, write: bool, external_id: str | None = None):
     if user.role == "superadmin":
         return
     if user.organization_id != org.id:
@@ -168,7 +168,7 @@ def assert_resource_access(org: Organization, resource_type: str, payload: dict,
     if not write:
         owner = payload.get("employee_id") or payload.get("empId") or payload.get("submitterId")
         if resource_type in {"employees", "tasks", "shifts"}:
-            if resource_type == "employees" and payload.get("id") != user.employee_id:
+            if resource_type == "employees" and (payload.get("employee_id") or payload.get("id") or external_id) != user.employee_id:
                 raise HTTPException(403, "You can only view your own employee record")
             if resource_type in {"tasks", "shifts"}:
                 return
@@ -196,7 +196,7 @@ def list_resources(
     result = []
     for row in rows:
         try:
-            assert_resource_access(org, resource_type, row.payload, user, False)
+            assert_resource_access(org, resource_type, row.payload, user, False, row.external_id)
             result.append({"id": row.external_id, **row.payload})
         except HTTPException:
             continue
@@ -276,7 +276,7 @@ def get_snapshot(
     result = {kind: [] for kind in RESOURCE_TYPES}
     for row in rows:
         try:
-            assert_resource_access(org, row.resource_type, row.payload, user, False)
+            assert_resource_access(org, row.resource_type, row.payload, user, False, row.external_id)
             result[row.resource_type].append({"id": row.external_id, **row.payload})
         except HTTPException:
             continue
