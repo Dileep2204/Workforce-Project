@@ -12,6 +12,7 @@ def test_login_uses_api_and_jwt_session():
 def test_employee_leave_and_support_submissions_use_api():
     assert '/resources/leaveRequests' in HTML
     assert '/resources/supportQueries' in HTML
+    assert '/attendance/punch' in HTML
 
 
 def test_ticket_resolution_and_escalation_use_api():
