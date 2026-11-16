@@ -69,9 +69,18 @@ Supported resource types: employees, tasks, shifts, leaveRequests, resignations,
 
 ## Existing index.html integration
 
-The current `index.html` is still a browser-side demo: it initializes sample records in JavaScript and does not call a backend. This backend is committed as an API foundation; the current UI must be migrated to call these APIs for login, reads, writes, attendance punches, leave approvals, tickets, shifts, payroll and chat before it can be called a production full-stack application.
+The feature branch now connects the existing login screen to the FastAPI JWT endpoints:
+- `POST /api/v1/auth/login` authenticates Super Admin, organization Admin and Employee accounts.
+- The access token is kept in browser `sessionStorage`; logout clears it.
+- `GET /api/v1/auth/me` restores an existing tab session after reload.
+- Organization snapshots are loaded from the authenticated API after sign-in. The backend filters employee-visible records and enforces organization scope.
+- The landing page no longer displays the seeded demo passwords.
 
-Do not expose the generic snapshot replacement endpoint to employee sessions. Use the resource endpoints and enforce the role rules for each operation. Payroll, attendance corrections and deletion approvals should receive additional business validation before production.
+Set `window.SSKATT_API_BASE` before the application script if the API is hosted somewhere other than `http://localhost:8000/api/v1`. The API must allow the exact frontend origin in `CORS_ORIGINS`.
+
+**Important: this is an incremental integration, not a completed migration.** Most dashboard actions still use the existing in-memory JavaScript state and have not yet been converted to authenticated create/update/delete API calls. Attendance punches, leave approvals, ticket updates/escalation, shift edits, payroll/payslip changes, messaging and notifications still need end-to-end wiring and tests.
+
+Do not expose the generic snapshot replacement endpoint to employee sessions. Use resource endpoints and enforce role rules for each operation. Payroll, attendance corrections and deletion approvals need additional business validation before production.
 
 ## Production checklist
 - Set strong secrets in the hosting provider's secret manager.
