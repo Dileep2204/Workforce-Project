@@ -45,3 +45,10 @@ class UserOut(BaseModel):
     employee_id: str | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+from typing import Literal
+
+
+class AttendancePunchRequest(BaseModel):
+    action: Literal["in", "out"]
