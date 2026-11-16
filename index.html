@@ -3431,6 +3431,13 @@ async function saveEditedShift(idx) {
 
 
 
+async function deleteShift(idx){
+  const org=organizations[currentOrgId],shift=(org.shifts||[])[idx];if(!shift)return;
+  if(!confirm(`Delete shift "${shift.name}"?`))return;
+  try{await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/shifts/${encodeURIComponent(shift.id)}`,{method:"DELETE"});org.shifts.splice(idx,1);renderShiftsRoster();showToast("Shift deleted from the server.");}
+  catch(error){showToast(`Shift deletion failed: ${error.message}`);}
+}
+
 function openChangeEmployeeShiftModal(empId) {
   const org = organizations[currentOrgId];
   const emp = (org.employees || []).find(e => e.id === empId);
@@ -4246,6 +4253,7 @@ async function toggleEmployeePunch() {
     });
     org.attendanceLogs = org.attendanceLogs || [];
     org.attendanceLogs.unshift(saved);
+    if (Number.isFinite(Number(saved.attendedDays))) emp.attendedDays = Number(saved.attendedDays);
     emp.status = action === "in" ? "Present" : "Logged Out";
     const btn = document.getElementById("btnEmpPunchToggle");
     const badge = document.getElementById("empLivePunchBadge");
