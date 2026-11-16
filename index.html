@@ -2132,6 +2132,7 @@ function mapApiOrganization(snapshot) {
     orgId: orgInfo.code,
     sector: orgInfo.sector,
     name: orgInfo.name,
+    adminUser: authenticatedUser?.username || "",
     icon: orgInfo.settings?.icon || (SECTOR_METADATA[orgInfo.sector] || {}).icon || "🏢",
     totalStaff: (data.employees || []).length,
     present: (data.attendanceLogs || []).filter(x => String(x.status || "").toLowerCase() === "present").length,
