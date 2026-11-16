@@ -24,8 +24,9 @@ RESOURCE_TYPES = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Tables are created for a fresh installation. Use Alembic migrations for managed production upgrades.
-    Base.metadata.create_all(bind=engine)
+    # Local development convenience only. Production schema changes are applied by Alembic.
+    if settings.environment.lower() in {"development", "test"}:
+        Base.metadata.create_all(bind=engine)
     yield
 
 
