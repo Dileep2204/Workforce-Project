@@ -396,6 +396,8 @@ def create_resource(
     if resource_type not in RESOURCE_TYPES:
         raise HTTPException(404, "Unknown resource type")
     org = org_for_user(db, code.upper(), user)
+    if resource_type in {"employees", "attendanceLogs"}:
+        raise HTTPException(405, "Use the dedicated employee provisioning or attendance workflow endpoint")
     assert_resource_access(org, resource_type, body.payload, user, True)
     existing = db.scalar(select(ResourceRecord).where(
         ResourceRecord.organization_id == org.id, ResourceRecord.resource_type == resource_type,
@@ -426,6 +428,8 @@ def update_resource(
         raise HTTPException(404, "Record not found")
     if user.role == "employee":
         raise HTTPException(403, "Employees cannot update workflow records; submit a new request or ticket")
+    if resource_type == "employees" and "password" in body.payload:
+        raise HTTPException(422, "Plaintext passwords must never be stored in employee profile records")
     assert_resource_access(org, resource_type, row.payload, user, True)
     assert_resource_access(org, resource_type, body.payload, user, True)
     row.payload = body.payload
