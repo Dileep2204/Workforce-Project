@@ -36,6 +36,10 @@ def test_no_browser_local_storage_or_plaintext_password_display():
     assert 'Pass: ${pass}' not in HTML
 
 
+def test_superadmin_can_provision_tenants_and_initial_admins():
+    assert 'sskattApi("/organizations/provision"' in HTML
+
+
 def test_admin_chat_persists_to_api():
     assert 'persistEmployeeMessage' in HTML
     assert '/resources/messages' in HTML
