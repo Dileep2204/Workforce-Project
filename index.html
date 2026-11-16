@@ -3474,28 +3474,21 @@ function openChangeEmployeeShiftModal(empId) {
   document.getElementById("universalModal").classList.remove("hidden");
 }
 
-function saveEmployeeShiftChange(empId) {
-  const org = organizations[currentOrgId];
-  const emp = (org.employees || []).find(e => e.id === empId);
-  if (!emp) return;
-
-  const newShift = (document.getElementById("changeEmpShiftCustom")?.value || "").trim();
-  if (!newShift) return showToast("Please select or enter a shift window!");
-
-  emp.shift = newShift;
-  if (!org.chats) org.chats = {};
-  if (!org.chats[emp.id]) org.chats[emp.id] = [];
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[emp.id].push({
-    sender: "admin",
-    text: `🗓️ [SHIFT UPDATED]: Your assigned duty schedule has been updated to "${newShift}".`,
-    time: timeStr
-  });
-
-  closeUniversalModal();
-  renderEmployeeDirectory();
-  showToast(`Shift updated for ${emp.name}!`);
+async function saveEmployeeShiftChange(empId) {
+  const org=organizations[currentOrgId], emp=(org.employees||[]).find(e=>e.id===empId);
+  if(!emp)return;
+  const newShift=(document.getElementById("changeEmpShiftCustom")?.value||"").trim();
+  if(!newShift)return showToast("Please select or enter a shift window.");
+  const updated={...emp,shift:newShift};
+  try {
+    const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/employees/${encodeURIComponent(emp.id)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});
+    Object.assign(emp,saved);
+    await persistEmployeeMessage(emp.id,`🗓️ Your assigned duty schedule is now ${newShift}.`,"admin");
+    closeUniversalModal();renderEmployeeDirectory();showToast("Employee shift assignment saved.");
+  }catch(error){showToast(`Shift assignment failed: ${error.message}`);}
 }
+
+
 
 function openRaiseWorkloadRequestModal() {
   const org = organizations[currentOrgId];
@@ -4131,20 +4124,14 @@ function selectAdminChatEmployee(empId) {
   renderAdminChatView();
 }
 
-function sendAdminToEmpMessage() {
-  const inp = document.getElementById("adminToEmpChatInput");
-  const txt = inp.value.trim();
-  if (!txt) return;
-
-  const org = organizations[currentOrgId];
-  if (!org.chats) org.chats = {};
-  if (!org.chats[adminActiveChatEmpId]) org.chats[adminActiveChatEmpId] = [];
-
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[adminActiveChatEmpId].push({ sender: "admin", text: txt, time: timeStr });
-  inp.value = "";
-  renderAdminChatView();
+async function sendAdminToEmpMessage() {
+  const inp=document.getElementById("adminToEmpChatInput"),txt=(inp?.value||"").trim();
+  if(!txt)return;
+  try{await persistEmployeeMessage(adminActiveChatEmpId,txt,"admin");if(inp)inp.value="";renderAdminChatView();}
+  catch(error){showToast(`Message was not sent: ${error.message}`);}
 }
+
+
 
 /* ==============================================================
    EMPLOYEE ALL ACCESS VIEWS & PUNCH
@@ -4437,21 +4424,23 @@ function renderEmpAdminChatView() {
   box.scrollTop = box.scrollHeight;
 }
 
-function sendEmpDirectMessage() {
-  const inp = document.getElementById("empChatInput");
-  const txt = inp.value.trim();
-  if (!txt) return;
-
-  const org = organizations[currentOrgId];
-  if (!org.chats) org.chats = {};
-  if (!org.chats[currentEmployeeId]) org.chats[currentEmployeeId] = [];
-
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  org.chats[currentEmployeeId].push({ sender: "emp", text: txt, time: timeStr });
-  inp.value = "";
-  renderEmpAdminChatView();
-  showToast("Message sent to Sector Admin!");
+async function sendEmpDirectMessage() {
+  const inp=document.getElementById("empChatInput"),txt=(inp?.value||"").trim();
+  if(!txt)return;
+  try{await persistEmployeeMessage(currentEmployeeId,txt,"emp");if(inp)inp.value="";renderEmpAdminChatView();showToast("Message saved and sent to your administrator.");}
+  catch(error){showToast(`Message was not sent: ${error.message}`);}
 }
+
+async function persistEmployeeMessage(employeeId,text,sender){
+  const org=organizations[currentOrgId], id=`MSG-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+  const msg={id,employee_id:employeeId,empId:employeeId,sender,text,time:new Date().toISOString()};
+  const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/messages`,{method:"POST",body:JSON.stringify({external_id:id,payload:msg})});
+  org.messages=org.messages||[];org.messages.push(saved);
+  org.chats=org.chats||{};org.chats[employeeId]=org.chats[employeeId]||[];org.chats[employeeId].push(saved);
+  return saved;
+}
+
+
 
 function startLiveClock() {
   setInterval(() => {
