@@ -62,3 +62,8 @@ class EmployeeProvisionRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=200)
     employee_id: str = Field(min_length=1, max_length=80)
     employee: dict
+
+
+class LeaveDecisionRequest(BaseModel):
+    status: Literal["Approved", "Rejected"]
+    remarks: str = Field(default="", max_length=1000)
