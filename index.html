@@ -3212,8 +3212,8 @@ async function completeWorkOrder(taskId){
   const org=organizations[currentOrgId],task=(org.tasks||[]).find(t=>t.id===taskId);if(!task)return;
   if(task.status==="Completed")return showToast("Work order is already completed.");
   const updated={...task,status:"Completed",progress:100,completedAt:new Date().toISOString()};
-  try{const saved=await sskattApi(\`/organizations/\${encodeURIComponent(org.orgId)}/resources/tasks/\${encodeURIComponent(taskId)}\`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(task,saved);renderWorkAssignments();showToast("Work order completion saved.");}
-  catch(error){showToast(\`Could not update work order: \${error.message}\`);}
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/resources/tasks/${encodeURIComponent(taskId)}`,{method:"PATCH",body:JSON.stringify({payload:updated})});Object.assign(task,saved);renderWorkAssignments();showToast("Work order completion saved.");}
+  catch(error){showToast(`Could not update work order: ${error.message}`);}
 }
 
 function openAssignTaskModal(prefilledAssignee) {
@@ -4124,13 +4124,13 @@ function renderEmployeeNotifications(){
   const box=document.getElementById("employeeNotificationsList");if(!box)return;
   const items=organizations[currentOrgId]?.notifications||[];
   if(!items.length){box.innerHTML='<div style="color:var(--muted);font-size:12px">No notifications yet.</div>';return;}
-  box.innerHTML=items.slice().sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||""))).map(n=>\`<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff"><b>\${escapeHtml(n.title||"Notification")}</b><div style="font-size:12px;margin-top:3px">\${escapeHtml(n.message||"")}</div><small style="color:var(--muted)">\${escapeHtml(n.createdAt||"")}</small> \${n.read?"<span class='status present'>Read</span>":\`<button class="action" onclick="markNotificationRead('\${escapeJsString(n.id)}')">Mark read</button>\`}</div>\`).join("");
+  box.innerHTML=items.slice().sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||""))).map(n=>`<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff"><b>${escapeHtml(n.title||"Notification")}</b><div style="font-size:12px;margin-top:3px">${escapeHtml(n.message||"")}</div><small style="color:var(--muted)">${escapeHtml(n.createdAt||"")}</small> ${n.read?"<span class='status present'>Read</span>":`<button class="action" onclick="markNotificationRead('${escapeJsString(n.id)}')">Mark read</button>`}</div>`).join("");
 }
 
 async function markNotificationRead(id){
   const org=organizations[currentOrgId];
-  try{const saved=await sskattApi(\`/organizations/\${encodeURIComponent(org.orgId)}/notifications/\${encodeURIComponent(id)}/read\`,{method:"POST"});const item=(org.notifications||[]).find(n=>n.id===id);if(item)Object.assign(item,saved);renderEmployeeNotifications();}
-  catch(error){showToast(\`Could not update notification: \${error.message}\`);}
+  try{const saved=await sskattApi(`/organizations/${encodeURIComponent(org.orgId)}/notifications/${encodeURIComponent(id)}/read`,{method:"POST"});const item=(org.notifications||[]).find(n=>n.id===id);if(item)Object.assign(item,saved);renderEmployeeNotifications();}
+  catch(error){showToast(`Could not update notification: ${error.message}`);}
 }
 
 function renderEmployeeResignationStatus() {
