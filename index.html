@@ -2085,9 +2085,8 @@ function updateDemo(prefilledOrgId) {
 
   const demoEmp = (activeOrg.employees && activeOrg.employees.length > 0) ? activeOrg.employees[0].id : "E-1024";
   document.getElementById("demoNote").innerHTML = `
-    <b>Credentials for ${s} (${activeOrg.orgId}):</b><br>
-    • <b>Admin:</b> User: <code>${activeOrg.adminUser}</code> | Pass: <code>${activeOrg.adminPass}</code><br>
-    • <b>Staff ID:</b> User: <code>${demoEmp}</code> | Pass: <code>password123</code>
+    <b>Portal: ${s} (${activeOrg.orgId})</b><br>
+    Use the username and password issued by your organization administrator. Demo records are illustrative; access is verified by the connected API.
   `;
 }
 
@@ -4758,6 +4757,9 @@ function closeUniversalModal() {
 }
 
 function logout() {
+  sskattAccessToken = "";
+  authenticatedUser = null;
+  sessionStorage.removeItem("sskatt_access_token");
   document.getElementById("dashboard").classList.add("hidden");
   document.getElementById("landing").classList.remove("hidden");
   const aiWidget = document.getElementById("aiSupportWidget");
