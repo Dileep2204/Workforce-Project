@@ -61,6 +61,7 @@ Core routes:
 - `POST /api/v1/organizations` (Super Admin)
 - `POST /api/v1/organizations/{code}/users` (admin can provision employees)
 - `GET /api/v1/organizations/{code}/snapshot`
+- `POST /api/v1/organizations/{code}/attendance/punch` (Employee-only; server derives employee identity and validates punch order)
 - `PUT /api/v1/organizations/{code}/snapshot` (admin/Super Admin full snapshot import)
 - `GET|POST /api/v1/organizations/{code}/resources/{resource_type}`
 - `PATCH|DELETE /api/v1/organizations/{code}/resources/{resource_type}/{external_id}`
