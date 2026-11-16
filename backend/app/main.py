@@ -12,7 +12,7 @@ from app.config import settings
 from app.database import Base, engine, get_db
 from app.deps import get_current_user, require_roles
 from app.models import AuditLog, Organization, ResourceRecord, User
-from app.schemas import AttendancePunchRequest, LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
+from app.schemas import AttendancePunchRequest, EmployeeProvisionRequest, LoginRequest, OrganizationCreate, ResourceCreate, ResourceUpdate, SnapshotUpdate, UserCreate
 from app.security import create_access_token, hash_password, verify_password
 
 RESOURCE_TYPES = {
@@ -131,6 +131,43 @@ def create_organization(
     audit(db, user, org, "organization.created")
     db.commit()
     return {"code": org.code, "sector": org.sector, "name": org.name}
+
+
+@app.post(f"{settings.api_prefix}/organizations/{{code}}/employees", status_code=201)
+def provision_employee(
+    code: str, body: EmployeeProvisionRequest, db: Session = Depends(get_db),
+    user: User = Depends(require_roles("admin", "superadmin"))
+):
+    org = org_for_user(db, code.upper(), user)
+    employee_id = body.employee_id.strip()
+    username = body.username.strip()
+    if str(body.employee.get("id") or "") != employee_id:
+        raise HTTPException(422, "Employee record ID must match employee_id")
+    if db.scalar(select(User).where(User.organization_id == org.id, User.username == username)):
+        raise HTTPException(409, "Username already exists in this organization")
+    if db.scalar(select(ResourceRecord).where(
+        ResourceRecord.organization_id == org.id,
+        ResourceRecord.resource_type == "employees",
+        ResourceRecord.external_id == employee_id
+    )):
+        raise HTTPException(409, "Employee ID already exists")
+    employee_payload = {**body.employee}
+    employee_payload.pop("password", None)
+    employee_payload["id"] = employee_id
+    employee_payload["employee_id"] = employee_id
+    new_user = User(
+        organization_id=org.id, username=username, full_name=body.full_name.strip(),
+        role="employee", employee_id=employee_id, password_hash=hash_password(body.password)
+    )
+    employee_record = ResourceRecord(
+        organization_id=org.id, resource_type="employees",
+        external_id=employee_id, payload=employee_payload
+    )
+    db.add_all([new_user, employee_record])
+    audit(db, user, org, "employee.provisioned", "employees", employee_id)
+    db.commit()
+    return {"employee": {"id": employee_id, **employee_payload},
+            "account": {"username": username, "role": "employee"}}
 
 
 @app.post(f"{settings.api_prefix}/organizations/{{code}}/users", status_code=201)
