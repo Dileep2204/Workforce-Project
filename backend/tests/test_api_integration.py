@@ -88,7 +88,14 @@ def test_leave_request_approval_notifies_employee(client):
     assert decision.status_code == 200, decision.text
     snapshot = client.get(f"/api/v1/organizations/{client.org_code}/snapshot", headers=employee)
     assert snapshot.json()["resources"]["leaveRequests"][0]["status"] == "Approved"
-    assert snapshot.json()["resources"]["notifications"][0]["employee_id"] == "EMP-200"
+    notification = snapshot.json()["resources"]["notifications"][0]
+    assert notification["employee_id"] == "EMP-200"
+    read = client.post(
+        f"/api/v1/organizations/{client.org_code}/notifications/{notification['id']}/read",
+        headers=employee
+    )
+    assert read.status_code == 200, read.text
+    assert read.json()["read"] is True
 
 
 def test_tenant_boundary_blocks_other_organization(client):
